@@ -15,10 +15,10 @@ def resource_path(relative_path):
     Return absolute path to resource, works for development and for PyInstaller EXE.
     """
     if getattr(sys, 'frozen', False):
-        base_dir = sys._MEIPASS
+        base = sys._MEIPASS
     else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-    return os.path.join(base_dir, relative_path)
+        base = getattr(sys, "_MEIPASS", os.path.dirname(__file__))
+    return os.path.join(base, relative_path)
 
 # -------------------------------------------------------------------------------
 # 2. SAVE & LOAD FUNCTIONS
@@ -62,7 +62,7 @@ def load_game():
 # -------------------------------------------------------------------------------
 def format_number_parts(n):
     """
-    Split a number into a mantissa and suffix (e.g., 1,234,000 → ("1.234", "M")).
+    Split a number into a mantissa and suffix (e.g., 1,234,000 → ("1.234", "Million")).
     """
     units = [
         " ", " Thousand", " Million", " Billion", " Trillion", " Quadrillion",
@@ -72,14 +72,31 @@ def format_number_parts(n):
         " Septendecillion", " Octodecillion", " Novemdecillion", " Vigintillion",
         " Unvigintillion", " Duovigintillion", " Trevigintillion",
         " Quattuorvigintillion", " Quinvigintillion", " Sexvigintillion",
-        " Septenvigintillion", " Octovigintillion", " Novemvigintillion",
+        " Septenvigintillion", " Octovigintillion", " Novemnovigintillion",
         " Trigintillion", " Untrigintillion", " Duotrigintillion",
-        " Treoctogintillion", " Quattuoroctogintillion", " Quinoctogintillion",
-        " Sexoctogintillion", " Septenoctogintillion", " Octooctogintillion",
-        " Novemoctogintillion", " Nonagintillion", " Unnonagintillion",
-        " Duononagintillion", " Trenonagintillion", " Quattuornonagintillion",
-        " Quinnonagintillion", " Sexnonagintillion", " Septennonagintillion",
-        " Octononagintillion", " Novemnonagintillion", " Centillion"
+        " Trestrigintillion", " Quattuortrigintillion", " Quintrigintillion",
+        " Sextrigintillion", " Septentrigintillion", " Octotrigintillion",
+        " Novemtrigintillion", " Quadragintillion", " Unquadragintillion",
+        " Duoquadragintillion", " Trequadragintillion", " Quattuorquadragintillion",
+        " Quinquadragintillion", " Sexquadragintillion", " Septenquadragintillion",
+        " Octoquadragintillion", " Novemquadragintillion", " Quinquagintillion",
+        " Unquinquagintillion", " Duoquinquagintillion", " Trequinquagintillion",
+        " Quattuorquinquagintillion", " Quinquinquagintillion", " Sexquinquagintillion",
+        " Septenquinquagintillion", " Octoquinquagintillion", " Novemquinquagintillion",
+        " Sexagintillion", " Unsexagintillion", " Duosexagintillion", " Tresexagintillion",
+        " Quattuorsexagintillion", " Quinsexagintillion", " Sexsexagintillion",
+        " Septensexagintillion", " Octosexagintillion", " Novemsexagintillion",
+        " Septuagintillion", " Unseptuagintillion", " Duoseptuagintillion",
+        " Treseptuagintillion", " Quattuorseptuagintillion", " Quinseptuagintillion",
+        " Sexseptuagintillion", " Septenseptuagintillion", " Octoseptuagintillion",
+        " Novemseptuagintillion", " Octogintillion", " Unoctogintillion",
+        " Duooctogintillion", " Treoctogintillion", " Quattuoroctogintillion",
+        " Quinoctogintillion", " Sexoctogintillion", " Septenoctogintillion",
+        " Octooctogintillion", " Novemoctogintillion", " Nonagintillion",
+        " Unnonagintillion", " Duononagintillion", " Trenonagintillion",
+        " Quattuornonagintillion", " Quinnonagintillion", " Sexnonagintillion",
+        " Septennonagintillion", " Octononagintillion", " Novemnonagintillion",
+        " Centillion"
     ]
     scale = 0
     val = float(n)
@@ -207,7 +224,7 @@ def default_game_state():
     """
     return {
         "money": 5.0,
-        "space_lifetime_earnings": 0.0,
+        "space_lifetime_earnings": 0,
         "global_speed_mult": 1.0,
         "global_profit_mult": 1.0,
         "last_timestamp": time.time(),
@@ -266,6 +283,8 @@ manager_scroll       = 0
 upgrade_scroll       = 0
 unlock_scroll        = 0
 investor_shop_scroll = 0
+investor_shop_dragging = False
+investor_shop_drag_offset = 0
 
 manager_dragging      = False
 manager_drag_offset   = 0
@@ -282,12 +301,18 @@ PANEL_WIDTH    = WIDTH - PANEL_X - 20
 PANEL_HEIGHT   = HEIGHT - PANEL_Y - 20
 ROW_HEIGHT     = 110
 ROW_GAP        = 16
+INVESTOR_ICON_SIZE = 58
+ENTRY_PADDING      = 20
+
+prestige_count = 0
 
 overlay_mode        = None
 last_overlay_mode   = None
 show_investor_shop  = False
 
-purchase_options = [1, 5, 10, -1]
+
+# Add X50 and X100, keep MAX as -1
+purchase_options = [1, 5, 10, 50, 100, -1]
 purchase_index   = 0
 
 popup_message          = None
@@ -4055,117 +4080,1333 @@ unlocks = [
       "description": "Galactic Senate profit ×3", "asset_path": None },
     # -------------------
     # Global (Capitalist) unlocks – biz_index=None
-    # -------------------
-    { "biz_index": None, "threshold":  25,   "type": "global_speed",  "multiplier": 2.0,
-      "description": "All businesses speed ×2",  "asset_path": "assets/global.png" },
-    { "biz_index": None, "threshold":  50,   "type": "global_speed",  "multiplier": 2.0,
-      "description": "All businesses speed ×2",  "asset_path": "assets/global.png" },
-    { "biz_index": None, "threshold": 100,   "type": "global_speed",  "multiplier": 2.0,
-      "description": "All businesses speed ×2",  "asset_path": "assets/global.png" },
-    { "biz_index": None, "threshold": 200,   "type": "global_speed",  "multiplier": 2.0,
-      "description": "All businesses speed ×2",  "asset_path": "assets/global.png" },
-    { "biz_index": None, "threshold": 300,   "type": "global_speed",  "multiplier": 2.0,
-      "description": "All businesses speed ×2",  "asset_path": "assets/global.png" },
-    { "biz_index": None, "threshold": 400,   "type": "global_speed",  "multiplier": 2.0,
-      "description": "All businesses speed ×2",  "asset_path": "assets/global.png" },
-    { "biz_index": None, "threshold": 500,   "type": "global_profit", "multiplier": 2.0,
-      "description": "All businesses profit ×2", "asset_path": "assets/global.png" },
+    # -------------------global_unlocks = [
+    # Threshold 25: Speed ×2
+    {
+        "biz_index":   None,
+        "threshold":   25,
+        "type":         "global_speed",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 speed",
+        "asset_path":   "assets/global.png"
+    },
+    # Threshold 25: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":   25,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 50: Speed ×2
+    {
+        "biz_index":   None,
+        "threshold":   50,
+        "type":         "global_speed",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 speed",
+        "asset_path":   "assets/global.png"
+    },
+    # Threshold 50: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":   50,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 100: Speed ×2
+    {
+        "biz_index":   None,
+        "threshold":  100,
+        "type":         "global_speed",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 speed",
+        "asset_path":   "assets/global.png"
+    },
+    # Threshold 100: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  100,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 200: Speed ×2
+    {
+        "biz_index":   None,
+        "threshold":  200,
+        "type":         "global_speed",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 speed",
+        "asset_path":   "assets/global.png"
+    },
+    # Threshold 200: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  200,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 300: Speed ×2
+    {
+        "biz_index":   None,
+        "threshold":  300,
+        "type":         "global_speed",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 speed",
+        "asset_path":   "assets/global.png"
+    },
+    # Threshold 300: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  300,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 400: Speed ×2
+    {
+        "biz_index":   None,
+        "threshold":  400,
+        "type":         "global_speed",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 speed",
+        "asset_path":   "assets/global.png"
+    },
+    # Threshold 400: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  400,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 500: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  500,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 600: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  600,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 666: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  666,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 700: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  700,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 777: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  777,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 800: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  800,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 900: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold":  900,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1000: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1000,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1100: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1100,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1111: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1111,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1200: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1200,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1300: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1300,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1400: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1400,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1500: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1500,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1600: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1600,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1700: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1700,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1800: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1800,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 1900: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 1900,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2000: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2000,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2100: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2100,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2200: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2200,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2222: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2222,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2300: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2300,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2400: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2400,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2500: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2500,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2600: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2600,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2700: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2700,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2800: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2800,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 2900: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 2900,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3000: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3000,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3100: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3100,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3200: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3200,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3300: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3300,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3333: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3333,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3400: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3400,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3500: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3500,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3600: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3600,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3700: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3700,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3800: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3800,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 3900: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 3900,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4000: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4000,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4100: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4100,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4200: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4200,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4300: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4300,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4400: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4400,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4500: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4500,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4600: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4600,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4700: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4700,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4800: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4800,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 4900: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 4900,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    },
+
+    # Threshold 5000: Earnings ×2
+    {
+        "biz_index":   None,
+        "threshold": 5000,
+        "type":         "global_profit",
+        "multiplier":   2.0,
+        "description": "All enterprises ×2 earnings",
+        "asset_path":   "assets/global.png"
+    }
 ]
 
-# -------------------------------------------------------------------------------
+
 # 10. GALACTIC UPGRADES (Angel-style)
 # -------------------------------------------------------------------------------
+# ── (Somewhere near the top, after you’ve defined your business list) ──
+
+
 galactic_upgrades = [
+    # ───────────────────────────────────────────────────────────────────────────────
     {
-        "name":        "Heavenly Harvest",
-        "description": "All business profits ×2",
-        "icon":        "✨",
-        "cost":        5,
+        "name":        "Cosmic Sacrifice",
+        "description": "All business profits ×3",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        10_000,
         "purchased":   False
     },
     {
-        "name":        "Divine Acceleration",
-        "description": "All business speeds ×2",
-        "icon":        "🚀",
-        "cost":        10,
+        "name":        "Stellar Archive",
+        "description": "+10 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,            # Satellite Network
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
     {
-        "name":        "Cosmic Fortune",
-        "description": "All profits ×3",
-        "icon":        "🪐",
-        "cost":        20,
+        "name":        "Rocket Reinforcements",
+        "description": "+10 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,            # Rocket Yard
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
     {
-        "name":        "Temporal Warp",
-        "description": "All speeds ×3",
-        "icon":        "🕳️",
-        "cost":        50,
+        "name":        "Lunar Land Bonus",
+        "description": "+10 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,            # Lunar Colony
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
     {
-        "name":        "Astral Dividend",
-        "description": "Earn +0.5% GI per second",
-        "icon":        "💰",
-        "cost":        100,
+        "name":        "Starlight Seed Grant",
+        "description": "+10 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,            # Starlight Farm
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
     {
-        "name":        "Galactic Beacon",
-        "description": "Unlock all businesses automatically",
-        "icon":        "🛰️",
-        "cost":        200,
+        "name":        "Alien Assistance",
+        "description": "+10 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,            # Alien Outpost
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
+    {
+        "name":        "Solar Surge",
+        "description": "+10 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,            # Solar Array
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Event Horizon Initiative",
+        "description": "+10 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,            # Black Hole Labs
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Wealth Grant",
+        "description": "+10 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,            # Wormhole Gate
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Stimulus",
+        "description": "+10 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,            # Galactic Senate
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Galactic Triumph",
+        "description": "All business profits ×9",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  9.0,
+        "amount":      0,
+        "cost":        100_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Satellite Supremacy",
+        "description": "+50 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket Ramp‐Up",
+        "description": "+50 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Leap",
+        "description": "+50 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Supercharge",
+        "description": "+50 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Alien Alliance",
+        "description": "+50 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Solar Core Boost",
+        "description": "+50 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Black Hole Bonanza",
+        "description": "+50 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Windfall",
+        "description": "+50 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Surge",
+        "description": "+50 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+
+    # ───────────────────────────────────────────────────────────────────────────────
+    {
+        "name":        "Celestial Convergence",
+        "description": "All business profits ×11",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  11.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Astro‐Paper Swap",
+        "description": "+25 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket‐Fuel Remap",
+        "description": "+25 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Lore",
+        "description": "+25 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Stream",
+        "description": "+25 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Outpost Overdrive",
+        "description": "+25 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Solar‐Wind Sync",
+        "description": "+25 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Gravity Glyph",
+        "description": "+25 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Wealth Transfer",
+        "description": "+25 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Stimulus II",
+        "description": "+25 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+
+    # ───────────────────────────────────────────────────────────────────────────────
+    {
+        "name":        "Unifying Umbra",
+        "description": "All business profits ×15",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  15.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Sextillion
+        "purchased":   False
+    },
+    {
+        "name":        "Satellite Supremacy II",
+        "description": "+75 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,     # 10 Sextillion
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket Resurgence II",
+        "description": "+75 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Legion II",
+        "description": "+75 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Surge II",
+        "description": "+75 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Outpost Overload II",
+        "description": "+75 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Solar‐Wing Amplifier",
+        "description": "+75 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Event Horizon Harvest",
+        "description": "+75 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Warchest II",
+        "description": "+75 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Spartans II",
+        "description": "+75 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Infinite Incentive",
+        "description": "All business profits ×3",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        333_000_000_000_000_000_000,  # 333 Quintrigintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Asteroid Accretion",
+        "description": "+25 Asteroid Miners",
+        "icon_image":  "assets/asteroidminer.png",
+        "biz_index":   0,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        700_000_000_000_000_000_000,  # 700 Quattuorvigintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Satellite Supremacy III",
+        "description": "+30 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket Riddle",
+        "description": "+30 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Luminance",
+        "description": "+30 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Synchrotron",
+        "description": "+30 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Outpost Oasis",
+        "description": "+30 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Solar Skyforge",
+        "description": "+30 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Black Hole Bonanza III",
+        "description": "+30 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Web",
+        "description": "+30 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Supremacy III",
+        "description": "+30 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Universal Uplift",
+        "description": "All business profits ×7.777777",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  7.777777,
+        "amount":      0,
+        "cost":        777_000_000_000_000_000_000,  # 777 Unvigintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Asteroid Amplifier",
+        "description": "Asteroid Miner profit ×3",
+        "icon_image":  "assets/asteroidminer.png",
+        "biz_index":   0,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Satellite Surge",
+        "description": "Satellite Network profit ×3",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket Re‐Energizer",
+        "description": "Rocket Yard profit ×3",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Luminosity",
+        "description": "Lunar Colony profit ×3",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Shine",
+        "description": "Starlight Farm profit ×3",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {  
+        "name":        "Outpost Overdrive III",
+        "description": "Alien Outpost profit ×3",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Solar Supernova",
+        "description": "Solar Array profit ×3",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Black Hole Bonanza IV",
+        "description": "Black Hole Labs profit ×3",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Warchest III",
+        "description": "Wormhole Gate profit ×3",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Supremacy IV",
+        "description": "Galactic Senate profit ×3",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    }
+  ]
+
 
     # ───────────────────────────────────────
     # “Capitalist” (global) unlocks (Earth)
     # ───────────────────────────────────────
 
-    {
-        "name":        "Mogul",
-        "description": "Profit Speed Doubled once you have 25 of every business",
-        "icon":        "🏦",
-        "cost":        25,
-        "purchased":   False
-    },
-    {
-        "name":        "Oligarch",
-        "description": "Profit Speed Doubled once you have 50 of every business",
-        "icon":        "💵",
-        "cost":        50,
-        "purchased":   False
-    },
-    {
-        "name":        "Tycoon",
-        "description": "Profit Speed Doubled once you have 100 of every business",
-        "icon":        "👑",
-        "cost":        100,
-        "purchased":   False
-    },
-    {
-        "name":        "Adam Smith Award",
-        "description": "Profit Speed Doubled once you have 200 of every business",
-        "icon":        "📜",
-        "cost":        200,
-        "purchased":   False
-    },
-    {
-        "name":        "Universal Capitalist",
-        "description": "Profit Speed Doubled once you have 300 of every business",
-        "icon":        "🌐",
-        "cost":        300,
-        "purchased":   False
-    },
-    {
-        "name":        "Theoretical Economist",
-        "description": "Profit Speed Doubled once you have 400 of every business",
-        "icon":        "📈",
-        "cost":        400,
-        "purchased":   False
-    }
-]
 
 # -------------------------------------------------------------------------------
 # 11. LOAD ALL BUSINESS IMAGES & GLOBAL ICON & STATS ICON
@@ -4272,7 +5513,7 @@ if loaded is None:
     galactic_investors_spent    = game_state["galactic_investors_spent"]
     unlocked_shown              = set(game_state["unlocked_shown"])
 
-    # Prepare a persistent first-time pop-up (no auto-dismiss)
+    # Prepare a persistent first‐time pop‐up (no auto‐dismiss)
     first_time_popup = True
     pw = int(WIDTH * 0.6)
     ph = int(HEIGHT * 0.7)
@@ -4295,7 +5536,7 @@ if loaded is None:
 else:
     game_state = loaded
 
-    # Restore all per-business fields (use defaults for missing keys)
+    # Restore all per‐business fields (use defaults for missing keys)
     for idx, biz_saved in enumerate(game_state["businesses"]):
         biz = businesses[idx]
         biz["owned"]       = biz_saved.get("owned", 0)
@@ -4320,7 +5561,7 @@ else:
 
     # Restore core numeric values
     money                       = game_state.get("money", 5.0)
-    space_lifetime_earnings     = game_state.get("space_lifetime_earnings", 0.0)
+    space_lifetime_earnings     = game_state.get("space_lifetime_earnings", 0)
     global_speed_mult           = game_state.get("global_speed_mult", 1.0)
     global_profit_mult          = game_state.get("global_profit_mult", 1.0)
     galactic_investors_total    = game_state.get("galactic_investors_total", 0)
@@ -4494,12 +5735,14 @@ def draw_header(surface, money, mouse_pos, mouse_clicked):
     money_label = font_big.render(f"${mant}{suff}", True, WHITE)
     surface.blit(money_label, (SIDEBAR_WIDTH + 20, (HEADER_HEIGHT - money_label.get_height()) // 2))
 
-    labels = ["x1", "x5", "x10", "MAX"]
+    # Now six buttons: x1, x5, x10, x50, x100, MAX
+    labels = ["x1", "x5", "x10", "x50", "x100", "MAX"]
     total_w = 0
     btn_h   = 32
     gap     = 10
     btn_rects = []
 
+    # Compute total width needed
     for lbl in labels:
         txt = font_small.render(lbl, True, WHITE)
         total_w += txt.get_width() + 20
@@ -4646,27 +5889,33 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
         surface.blit(left2,  (btn_x + 8, line2_y))
         surface.blit(right2, (btn_x + btn_w - right2.get_width() - 8, line2_y))
 
+        # ── FIXED: Only signal the click, but do NOT apply money/owned here ──
         if hovered_btn and mouse_clicked and can_buy:
-            money -= total_cost
-            biz["owned"] += count
             buy_clicked = idx
 
         if not unlocked:
+            # Instead of showing base_cost, show cost_for_count
+            unlock_count = count if count > 0 else 1
+            unlock_cost  = total_cost_for_next_N(biz, unlock_count)
+            cost_mant_u, cost_suff_u = format_number_parts(unlock_cost)
+            can_unlock = (money >= unlock_cost)
+            cost_color = WHITE if can_unlock else GRAYED
+
             overlay_surf2 = pygame.Surface((biz_rect.w, biz_rect.h), pygame.SRCALPHA)
             overlay_surf2.fill((40, 42, 56, 180))
             surface.blit(overlay_surf2, (x, y))
 
-            lock_mant, lock_suff = format_number_parts(biz["base_cost"])
-            lock_label = font_small.render(f"Cost: ${lock_mant}{lock_suff}", True, WHITE)
+            lock_label = font_small.render(f"Cost: ${cost_mant_u}{cost_suff_u}", True, cost_color)
             surface.blit(
                 lock_label,
                 (x + (biz_rect.w - lock_label.get_width()) // 2,
                  y + (biz_rect.h // 2) - 10)
             )
 
-            if biz_rect.collidepoint(mouse_pos) and mouse_clicked and money >= biz["base_cost"]:
-                money -= biz["base_cost"]
-                biz["owned"]    = 1
+            # If you click on the locked rect and can afford "count" units, unlock+buy
+            if biz_rect.collidepoint(mouse_pos) and mouse_clicked and can_unlock:
+                money -= unlock_cost
+                biz["owned"]    = unlock_count
                 biz["unlocked"] = True
                 biz["in_progress"] = False
                 biz["timer"]    = 0.0
@@ -4942,10 +6191,22 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
     box_y = (HEIGHT - box_h) // 2
     pygame.draw.rect(surface, PANEL_DARK, (box_x, box_y, box_w, box_h), border_radius=12)
 
+    # “Buy All” button at top-left of the Upgrades box
+    buyall_rect = pygame.Rect(box_x + 20, box_y + 20, 100, 30)
+    buyall_hovered = buyall_rect.collidepoint(mouse_pos)
+    buyall_color = BTN_HOVER if buyall_hovered else ACCENT
+    pygame.draw.rect(surface, buyall_color, buyall_rect, border_radius=6)
+    buyall_txt = font_small.render("Buy All", True, WHITE)
+    surface.blit(
+        buyall_txt,
+        (buyall_rect.x + (buyall_rect.w - buyall_txt.get_width()) // 2,
+         buyall_rect.y + (buyall_rect.h - buyall_txt.get_height()) // 2)
+    )
+
     title_surf = font_big.render("Purchase Upgrades", True, WHITE)
     surface.blit(
         title_surf,
-        (box_x + (box_w - title_surf.get_width()) // 2, box_y + 20)
+        (box_x + (box_w - title_surf.get_width()) // 2, box_y + 20 + buyall_rect.height + 10)
     )
 
     close_size = 24
@@ -4967,7 +6228,7 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
     )
     prev_affordable_upgrades = set(current_affordable)
 
-    header_y = box_y + 60
+    header_y = box_y + 20 + buyall_rect.height + 10 + 40
     col1_x = box_x + 5
     col2_x = box_x + 60
     col3_x = box_x + box_w - 140
@@ -5047,10 +6308,11 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
 
         cost_val = upg["cost"]
         cost_mant, cost_suff = format_number_parts(cost_val)
-        cost_surf = font_small.render(f"${cost_mant}{cost_suff}", True, ACCENT)
+        can_buy  = (money >= cost_val)
+        cost_color = ACCENT if can_buy else GRAYED
+        cost_surf = font_small.render(f"${cost_mant}{cost_suff}", True, cost_color)
         surface.blit(cost_surf, (col2_x, y_offset + 45))
 
-        can_buy = (money >= cost_val)
         buy_rect = pygame.Rect(col3_x, y_offset + 15, 100, 30)
         base_color = ACCENT if can_buy else PANEL_DARK
         buy_color  = BTN_HOVER if (buy_rect.collidepoint(mouse_pos) and can_buy) else base_color
@@ -5081,6 +6343,7 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
 
     surface.set_clip(None)
 
+    # ─── Scrollbar drawing ───
     if total_content_h > visible_h:
         track_x = box_x + box_w - 12
         track_y = scroll_top
@@ -5110,6 +6373,26 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
             upgrade_scroll = int(((new_y - scroll_top) / max_thumb_travel) * max_scroll) if max_thumb_travel > 0 else 0
         elif not pygame.mouse.get_pressed()[0]:
             upgrade_dragging = False
+
+    # ─── “Buy All” logic: if clicked, attempt to buy every affordable upgrade ───
+    if buyall_rect.collidepoint(mouse_pos) and mouse_clicked:
+        something_bought = True
+        while something_bought:
+            something_bought = False
+            for upg2 in sorted_upgs:
+                if upg2["purchased"]:
+                    continue
+                cost2 = upg2["cost"]
+                if money >= cost2:
+                    money -= cost2
+                    if upg2.get("biz_index") is None:
+                        for b2 in businesses:
+                            b2["profit_mult"] *= upg2["multiplier"]
+                    else:
+                        businesses[upg2["biz_index"]]["profit_mult"] *= upg2["multiplier"]
+                    upg2["purchased"] = True
+                    something_bought = True
+                    break  # restart scanning from top
 
     return close_btn_rect
 
@@ -5250,9 +6533,9 @@ def draw_unlocks_ui(surface, mouse_pos, mouse_clicked):
     return close_btn_rect
 
 def draw_investors_ui(surface, mouse_pos, mouse_clicked):
-    global close_btn_rect
-    global show_investor_shop, galactic_investors_total, galactic_investors_spent, space_lifetime_earnings
+    global close_btn_rect, show_investor_shop, galactic_investors_total, galactic_investors_spent
     global investor_shop_scroll, global_speed_mult, global_profit_mult
+    global money, space_lifetime_earnings, businesses, upgrades, unlocked_shown, session_start_time, playtime_this_prestige
 
     overlay_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay_surf.fill((30, 30, 40, 210))
@@ -5266,6 +6549,7 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
 
     close_size = 24
     if not show_investor_shop:
+        # ─── Main "Galactic Investors" view ───
         close_x = box_x + box_w - close_size - 12
         close_y = box_y + 12
         close_btn_rect = pygame.Rect(close_x, close_y, close_size, close_size)
@@ -5276,71 +6560,66 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
             (close_x + (close_size - x_surf.get_width()) // 2,
              close_y + (close_size - x_surf.get_height()) // 2)
         )
-    else:
-        back_x = box_x + 12
-        back_y = box_y + 12
-        back_btn_rect = pygame.Rect(back_x, back_y, close_size, close_size)
-        pygame.draw.rect(surface, BTN_HOVER, back_btn_rect, border_radius=4)
-        arrow_surf = font_small.render("<", True, WHITE)
-        surface.blit(
-            arrow_surf,
-            (back_x + (close_size - arrow_surf.get_width()) // 2,
-             back_y + (close_size - arrow_surf.get_height()) // 2)
-        )
 
-    if not show_investor_shop:
         title_surf = font_big.render("Galactic Investors", True, WHITE)
         surface.blit(title_surf, (box_x + (box_w - title_surf.get_width()) // 2, box_y + 20))
 
-        tagline = "Putting the ‘Galaxy’ back in ‘Galactic profits’! Look at those boosts!"
+        tagline = "Putting the ‘Galaxy’ back in ‘Galactic profits’!"
         tag_surf = font_small.render(tagline, True, GRAYED)
         surface.blit(tag_surf, (box_x + (box_w - tag_surf.get_width()) // 2, box_y + 60))
 
         info_y = box_y + 100
         line_spacing = 30
 
+        # Total GIs
         gis_text = font_med.render(f"Total GIs: {galactic_investors_total}", True, WHITE)
         surface.blit(gis_text, (box_x + 40, info_y))
 
+        # Bonus per GI
         bonus_text = font_med.render("Bonus per GI: 2%", True, WHITE)
         surface.blit(bonus_text, (box_x + 40, info_y + line_spacing))
 
+        # GIs Spent
         spent_text = font_med.render(f"GIs Spent: {galactic_investors_spent}", True, WHITE)
         surface.blit(spent_text, (box_x + 40, info_y + 2 * line_spacing))
 
-        lf_q = space_lifetime_earnings / 1e15
-        if lf_q < 0.01:
-            lte_str = "0.00"
-        else:
-            lte_str = f"{lf_q:.2f}"
-        lte_text = font_med.render(f"Lifetime Earnings: {lte_str} Q", True, WHITE)
+        # ─── Lifetime Earnings: format with format_number_parts ───
+        mantissa, suffix = format_number_parts(int(space_lifetime_earnings))
+        lte_text = font_med.render(f"Lifetime Earnings: {mantissa}{suffix}", True, WHITE)
         surface.blit(lte_text, (box_x + 40, info_y + 3 * line_spacing))
 
-        potential = int(150 * math.sqrt(lf_q)) if lf_q > 0 else 0
-        new_gis   = max(0, potential - galactic_investors_spent)
+        # Calculate how many new GIs are available to collect
+        # Use space_lifetime_earnings directly instead of undefined lf_q
+        lf_q_value = space_lifetime_earnings / 1e15
+        potential = int(150 * math.sqrt(lf_q_value)) if lf_q_value > 0 else 0
+        new_gis = max(0, potential - galactic_investors_spent)
 
-        claim_btn_rect = pygame.Rect(box_x + 40, box_y + box_h - 140, box_w - 80, 40)
+        # ─── Draw “Available Galactic Investors to collect: <new_gis>” text ───
+        avail_text = f"Available Galactic Investors to collect: {new_gis}"
+        avail_surf = font_med.render(avail_text, True, WHITE)
+        surface.blit(avail_surf, (box_x + 40, box_y + box_h - 200))
+
+        # ─── “Invest” button ───
+        invest_btn_rect = pygame.Rect(box_x + 40, box_y + box_h - 160, box_w - 80, 40)
         if new_gis > 0:
-            claim_color = ACCENT if claim_btn_rect.collidepoint(mouse_pos) else BTN_HOVER
+            invest_color = ACCENT if not invest_btn_rect.collidepoint(mouse_pos) else BTN_HOVER
         else:
-            claim_color = PANEL_DARK
-        pygame.draw.rect(surface, claim_color, claim_btn_rect, border_radius=6)
-        claim_txt = "Claim GIs" if new_gis > 0 else "No GIs Available"
-        claim_surf = font_small.render(claim_txt, True, WHITE)
+            invest_color = PANEL_DARK
+        pygame.draw.rect(surface, invest_color, invest_btn_rect, border_radius=6)
+        invest_surf = font_small.render("Invest", True, WHITE)
         surface.blit(
-            claim_surf,
-            (claim_btn_rect.x + (claim_btn_rect.w - claim_surf.get_width()) // 2,
-             claim_btn_rect.y + (claim_btn_rect.h - claim_surf.get_height()) // 2)
+            invest_surf,
+            (invest_btn_rect.x + (invest_btn_rect.w - invest_surf.get_width()) // 2,
+             invest_btn_rect.y + (invest_btn_rect.h - invest_surf.get_height()) // 2)
         )
-        if claim_btn_rect.collidepoint(mouse_pos) and mouse_clicked and new_gis > 0:
-            lifetime_q = space_lifetime_earnings / 1e15
-            potential_amt = int(150 * math.sqrt(lifetime_q)) if lifetime_q > 0 else 0
-            new_amt = max(0, potential_amt - galactic_investors_spent)
-            galactic_investors_total += new_amt
-            galactic_investors_spent += new_amt
-            # Reset all businesses etc.
-            STARTING_MONEY = 50000000000000.0
-            money = STARTING_MONEY
+        if invest_btn_rect.collidepoint(mouse_pos) and mouse_clicked and new_gis > 0:
+            # Collect all available GIs
+            collect_amt = new_gis
+            galactic_investors_total += collect_amt
+            galactic_investors_spent += collect_amt
+
+            # Reset everything except GIs and investor unlocks
+            money = 0.0
             space_lifetime_earnings = 0.0
             for biz in businesses:
                 biz["owned"] = 0
@@ -5351,17 +6630,20 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
                 biz["in_progress"] = False
                 biz["timer"] = 0.0
             businesses[0]["unlocked"] = True
+
             for upg in upgrades:
                 upg["purchased"] = False
             unlocked_shown.clear()
 
+            # Reset cycle timers
             global cycle_start_time, cycle_start_money, playtime_this_prestige
             cycle_start_time = time.time()
             cycle_start_money = money
             playtime_this_prestige = 0.0
 
-        shop_btn_rect = pygame.Rect(box_x + 40, box_y + box_h - 80, box_w - 80, 40)
-        shop_color = BTN_HOVER if shop_btn_rect.collidepoint(mouse_pos) else PANEL_DARK
+        # ─── “Investor Shop” button ───
+        shop_btn_rect = pygame.Rect(box_x + 40, box_y + box_h - 100, box_w - 80, 40)
+        shop_color = ACCENT if not shop_btn_rect.collidepoint(mouse_pos) else BTN_HOVER
         pygame.draw.rect(surface, shop_color, shop_btn_rect, border_radius=6)
         shop_surf = font_small.render("Investor Shop", True, WHITE)
         surface.blit(
@@ -5375,27 +6657,32 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
         return close_btn_rect
 
     else:
+        # ─── Investor Shop sub‐view ───
         title_surf = font_big.render("GALACTIC INVESTOR SHOP", True, WHITE)
         surface.blit(title_surf, (box_x + (box_w - title_surf.get_width()) // 2, box_y + 20))
 
-        back_x = box_x + 12
-        back_y = box_y + 12
-        back_btn_rect = pygame.Rect(back_x, back_y, close_size, close_size)
-        pygame.draw.rect(surface, BTN_HOVER, back_btn_rect, border_radius=4)
-        arrow_surf = font_small.render("<", True, WHITE)
+        # Draw “X” close button instead of back arrow
+        close_x = box_x + box_w - close_size - 12
+        close_y = box_y + 12
+        close_btn_rect = pygame.Rect(close_x, close_y, close_size, close_size)
+        pygame.draw.rect(surface, BTN_HOVER, close_btn_rect, border_radius=4)
+        x_surf = font_small.render("X", True, WHITE)
         surface.blit(
-            arrow_surf,
-            (back_x + (close_size - arrow_surf.get_width()) // 2,
-             back_y + (close_size - arrow_surf.get_height()) // 2)
+            x_surf,
+            (close_x + (close_size - x_surf.get_width()) // 2,
+             close_y + (close_size - x_surf.get_height()) // 2)
         )
-        if back_btn_rect.collidepoint(mouse_pos) and mouse_clicked:
+        if close_btn_rect.collidepoint(mouse_pos) and mouse_clicked:
             show_investor_shop = False
 
         draw_investor_shop_list(surface, mouse_pos, mouse_clicked)
-        return back_btn_rect
+        return close_btn_rect
+
 
 def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
-    global investor_shop_scroll, galactic_investors_total, galactic_investors_spent, global_speed_mult, global_profit_mult
+    global investor_shop_scroll, galactic_investors_total, galactic_investors_spent
+    global global_speed_mult, global_profit_mult
+    global investor_shop_dragging, investor_shop_drag_offset
 
     box_w = int(WIDTH * 0.6)
     box_h = int(HEIGHT * 0.7)
@@ -5403,31 +6690,36 @@ def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
     box_y = (HEIGHT - box_h) // 2
 
     line_y = box_y + 70
-    pygame.draw.line(surface, GRAYED, (box_x + 20, line_y), (box_x + box_w - 20, line_y), 1)
+    pygame.draw.line(
+        surface,
+        GRAYED,
+        (box_x + 20, line_y),
+        (box_x + box_w - 20, line_y),
+        1
+    )
 
     list_top    = line_y + 20
     list_bottom = box_y + box_h - 20
     visible_h   = list_bottom - list_top
-    entry_h     = 60
-    spacing     = 10
+    entry_h = max(INVESTOR_ICON_SIZE + ENTRY_PADDING, 60)
+    spacing     = 12
 
+    # Clip to the scrolling region
     clip_rect = pygame.Rect(box_x + 10, list_top, box_w - 20, visible_h)
     surface.set_clip(clip_rect)
 
-    unpurchased = [g for g in galactic_upgrades if not g["purchased"]]
+    unpurchased = [g for g in galactic_upgrades if not g.get("purchased", False)]
     total_h     = len(unpurchased) * (entry_h + spacing)
     max_scroll  = max(0, total_h - visible_h)
     investor_shop_scroll = max(0, min(investor_shop_scroll, max_scroll))
 
     y_offset = list_top - investor_shop_scroll
-    col1_x = box_x + 20
-    col2_x = box_x + 80
-    col3_x = box_x + box_w - 140
+    col1_x = box_x + 20               # where the icon goes
+    col2_x = box_x + 80               # text column
+    col3_x = box_x + box_w - 140      # “Buy” button right‐edge
 
-    for upgrade in galactic_upgrades:
-        if upgrade["purchased"]:
-            continue
-
+    for upgrade in unpurchased:
+        # If this entry is off‐screen, skip
         if (y_offset + entry_h < list_top) or (y_offset > list_bottom):
             y_offset += entry_h + spacing
             continue
@@ -5435,56 +6727,132 @@ def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
         entry_rect = pygame.Rect(box_x + 10, y_offset, box_w - 20, entry_h)
         pygame.draw.rect(surface, (50, 50, 70), entry_rect, border_radius=8)
 
-        icon_surf = font_big.render(upgrade["icon"], True, WHITE)
-        surface.blit(icon_surf, (col1_x, y_offset + 10))
+        # ───── ICON ─────
+        try:
+            img = pygame.image.load(resource_path(upgrade["icon_image"])).convert_alpha()
+            img = pygame.transform.smoothscale(img, (INVESTOR_ICON_SIZE, INVESTOR_ICON_SIZE))
+            surface.blit(
+                img,
+                (col1_x, y_offset + (entry_h - INVESTOR_ICON_SIZE) // 2)
+            )
+        except Exception:
+            # Fallback: draw a grey circle if asset not found
+            placeholder = pygame.Surface((INVESTOR_ICON_SIZE, INVESTOR_ICON_SIZE), pygame.SRCALPHA)
+            pygame.draw.circle(
+                placeholder,
+                (150, 150, 150),
+                (INVESTOR_ICON_SIZE // 2, INVESTOR_ICON_SIZE // 2),
+                INVESTOR_ICON_SIZE // 2
+            )
+            surface.blit(
+                placeholder,
+                (col1_x, y_offset + (entry_h - INVESTOR_ICON_SIZE) // 2)
+            )
 
-        name_surf = font_med.render(upgrade["name"], True, YELLOW)
+        # ───── NAME & DESCRIPTION ─────
+        name_surf = font_med.render(upgrade.get("name", ""), True, YELLOW)
         surface.blit(name_surf, (col2_x, y_offset + 8))
-        desc_surf = font_small.render(upgrade["description"], True, GRAYED)
+
+        desc_surf = font_small.render(upgrade.get("description", ""), True, GRAYED)
         surface.blit(desc_surf, (col2_x, y_offset + 30))
 
-        cost_val = upgrade["cost"]
+        # ───── PRICE BELOW DESCRIPTION ─────
+        cost_val = upgrade.get("cost", 0)
         mant, suff = format_number_parts(cost_val)
-        can_buy  = galactic_investors_total >= cost_val
-        buy_rect = pygame.Rect(col3_x, y_offset + 15, 100, 30)
+        price_text = f"${mant}{suff}"
+        price_surf = font_small.render(price_text, True, ACCENT)
+        surface.blit(price_surf, (col2_x, y_offset + 50))
+
+        # ───── “Buy” button ─────
+        can_buy = (galactic_investors_total >= cost_val)
+        buy_label = font_small.render("Buy", True, WHITE)
+        padding = 20
+        btn_w = buy_label.get_width() + padding
+        btn_h = 32
+
+        btn_x = col3_x
+        if btn_x + btn_w > box_x + box_w - 10:
+            btn_x = (box_x + box_w - 10) - btn_w
+
+        buy_rect = pygame.Rect(col3_x, y_offset + (entry_h // 2) - 15, 100, 30)
+
         if can_buy:
             base_color = ACCENT
+            btn_color  = BTN_HOVER if buy_rect.collidepoint(mouse_pos) else ACCENT
         else:
             base_color = PANEL_DARK
-        if buy_rect.collidepoint(mouse_pos) and can_buy:
-            buy_color = BTN_HOVER
-        else:
-            buy_color = base_color
-        pygame.draw.rect(surface, buy_color, buy_rect, border_radius=6)
-        buy_txt = font_small.render(f"Spend {mant}{suff} GIs", True, WHITE)
+            btn_color  = PANEL_DARK
+
+        pygame.draw.rect(surface, btn_color, buy_rect, border_radius=6)
         surface.blit(
-            buy_txt,
-            (buy_rect.x + (buy_rect.w - buy_txt.get_width()) // 2,
-             y_offset + 15 + (30 - buy_txt.get_height()) // 2)
+            buy_label,
+            (
+                buy_rect.x + (buy_rect.w - buy_label.get_width())//2,
+                buy_rect.y + (buy_rect.h - buy_label.get_height())//2
+            )
         )
 
+        # ───── HANDLE CLICK ─────
         if buy_rect.collidepoint(mouse_pos) and mouse_clicked and can_buy:
             galactic_investors_total -= cost_val
-            galactic_investors_spent  += cost_val
             upgrade["purchased"] = True
-            name = upgrade["name"]
-            if name == "Heavenly Harvest":
-                global_profit_mult *= 2
-            elif name == "Divine Acceleration":
-                global_speed_mult *= 2
-            elif name == "Cosmic Fortune":
-                global_profit_mult *= 3
-            elif name == "Temporal Warp":
-                global_speed_mult *= 3
-            elif name == "Astral Dividend":
-                pass
-            elif name == "Galactic Beacon":
+
+            upg_type = upgrade.get("type")
+            biz_idx  = upgrade.get("biz_index")
+
+            if upg_type == "profit":
+                if biz_idx is not None:
+                    businesses[biz_idx]["profit_mult"] *= upgrade.get("multiplier", 1.0)
+
+            elif upg_type == "global_profit":
                 for b in businesses:
-                    b["unlocked"] = True
+                    b["profit_mult"] *= upgrade.get("multiplier", 1.0)
+
+            elif upg_type == "add_units":
+                amount = upgrade.get("amount", 0)
+                if biz_idx is not None and amount > 0:
+                    businesses[biz_idx]["owned"] += amount
 
         y_offset += entry_h + spacing
 
     surface.set_clip(None)
+
+    # ─── Vertical scrollbar ───
+    if total_h > visible_h:
+        track_x = box_x + box_w - 12
+        track_y = list_top
+        track_w = 6
+        track_h = visible_h
+        pygame.draw.rect(
+            surface,
+            (60, 60, 80),
+            (track_x, track_y, track_w, track_h),
+            border_radius=3
+        )
+
+        thumb_h = max(20, int((visible_h / total_h) * visible_h))
+        max_thumb_travel = visible_h - thumb_h
+        if max_scroll > 0:
+            thumb_y = list_top + int((investor_shop_scroll / max_scroll) * max_thumb_travel)
+        else:
+            thumb_y = list_top
+
+        thumb_rect = pygame.Rect(track_x, thumb_y, track_w, thumb_h)
+        thumb_color = ACCENT if thumb_rect.collidepoint(mouse_pos) else BTN_HOVER
+        pygame.draw.rect(surface, thumb_color, thumb_rect, border_radius=3)
+
+        if mouse_clicked and thumb_rect.collidepoint(mouse_pos):
+            investor_shop_dragging = True
+            investor_shop_drag_offset = mouse_pos[1] - thumb_y
+
+        if 'investor_shop_dragging' in globals() and investor_shop_dragging and pygame.mouse.get_pressed()[0]:
+            new_y = mouse_pos[1] - investor_shop_drag_offset
+            new_y = max(list_top, min(list_top + max_thumb_travel, new_y))
+            investor_shop_scroll = int(((new_y - list_top) / max_thumb_travel) * max_scroll) \
+                                  if max_thumb_travel > 0 else 0
+        elif not pygame.mouse.get_pressed()[0]:
+            investor_shop_dragging = False
+
 
 def draw_popup(surface):
     global popup_message, popup_end_time
@@ -5666,8 +7034,8 @@ while running:
                 "last_timestamp": time.time(),
                 "galactic_investors_total": galactic_investors_total,
                 "galactic_investors_spent": galactic_investors_spent,
-                "businesses": [],
-                "upgrades": [],
+                "businesses": [], 
+                "upgrades": [], 
                 "unlocked_shown": list(unlocked_shown),
                 "galactic_upgrades": []
             }
@@ -5703,21 +7071,24 @@ while running:
 
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_down = True
-            mouse_clicked = True
+            # ── FIX: Only treat left‐click (button=1) as a "click" ──
             if event.button == 1:
+                mouse_clicked = True
                 click_count += 1
 
         elif event.type == pygame.MOUSEBUTTONUP:
             mouse_down = False
 
         elif event.type == pygame.MOUSEWHEEL:
-            # Scroll for manager, upgrades, unlocks
+            # Scroll for manager, upgrades, unlocks, AND Investor Shop
             if overlay_mode == "Managers":
                 manager_scroll -= event.y * 30
             elif overlay_mode == "Upgrades":
                 upgrade_scroll -= event.y * 30
             elif overlay_mode == "Unlocks":
                 unlock_scroll -= event.y * 30
+            elif overlay_mode == "Investors" and show_investor_shop:
+                investor_shop_scroll -= event.y * 30
 
     screen.fill(BG_DARK)
 
@@ -5771,15 +7142,12 @@ while running:
 
     # Handle unlock & buy only when no overlay & no first-time popup
     if overlay_mode is None and not first_time_popup:
+        # UNLOCK-BIZ click
         if unlock_result is not None:
             biz = businesses[unlock_result]
-            if not biz["unlocked"] and money >= biz["base_cost"]:
-                money -= biz["base_cost"]
-                biz["owned"]    = 1
-                biz["unlocked"] = True
-                biz["in_progress"] = False
-                biz["timer"]    = 0.0
+            # Already handled in draw_business_panel, so no extra action here
 
+        # BUY-BIZ click (only apply once, here)
         if buy_result is not None:
             biz = businesses[buy_result]
             count = purchase_options[purchase_index]

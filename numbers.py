@@ -256,12 +256,6 @@ units = [
 ]
 
 
-# -----------------------------------
-# Upgrades list (sorted by cost ascending)
-# -----------------------------------
-# -------------------------------------------------------------------------------
-# 7. BUSINESS DEFINITIONS
-# -------------------------------------------------------------------------------
 businesses = [
     {
         "index": 0,
@@ -3918,57 +3912,706 @@ unlocks = [
       "description": "All businesses profit ×2", "asset_path": "assets/global.png" },
 ]
 
-# -------------------------------------------------------------------------------
 # 10. GALACTIC UPGRADES (Angel-style)
 # -------------------------------------------------------------------------------
+# ── (Somewhere near the top, after you’ve defined your business list) ──
+
+
 galactic_upgrades = [
+    # ───────────────────────────────────────────────────────────────────────────────
     {
-        "name":        "Heavenly Harvest",
-        "description": "All business profits ×2",
-        "icon":        "✨",
-        "cost":        5,
+        "name":        "Cosmic Sacrifice",
+        "description": "All business profits ×3",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        10_000,
         "purchased":   False
     },
     {
-        "name":        "Divine Acceleration",
-        "description": "All business speeds ×2",
-        "icon":        "🚀",
-        "cost":        10,
+        "name":        "Stellar Archive",
+        "description": "+10 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,            # Satellite Network
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
     {
-        "name":        "Cosmic Fortune",
-        "description": "All profits ×3",
-        "icon":        "🪐",
-        "cost":        20,
+        "name":        "Rocket Reinforcements",
+        "description": "+10 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,            # Rocket Yard
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
     {
-        "name":        "Temporal Warp",
-        "description": "All speeds ×3",
-        "icon":        "🕳️",
-        "cost":        50,
+        "name":        "Lunar Land Bonus",
+        "description": "+10 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,            # Lunar Colony
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
     {
-        "name":        "Astral Dividend",
-        "description": "Earn +0.5% GI per second",
-        "icon":        "💰",
-        "cost":        100,
+        "name":        "Starlight Seed Grant",
+        "description": "+10 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,            # Starlight Farm
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
     {
-        "name":        "Galactic Beacon",
-        "description": "Unlock all businesses automatically",
-        "icon":        "🛰️",
-        "cost":        200,
+        "name":        "Alien Assistance",
+        "description": "+10 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,            # Alien Outpost
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
         "purchased":   False
     },
+    {
+        "name":        "Solar Surge",
+        "description": "+10 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,            # Solar Array
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Event Horizon Initiative",
+        "description": "+10 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,            # Black Hole Labs
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Wealth Grant",
+        "description": "+10 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,            # Wormhole Gate
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Stimulus",
+        "description": "+10 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,            # Galactic Senate
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      10,
+        "cost":        25_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Galactic Triumph",
+        "description": "All business profits ×9",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  9.0,
+        "amount":      0,
+        "cost":        100_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Satellite Supremacy",
+        "description": "+50 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket Ramp‐Up",
+        "description": "+50 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Leap",
+        "description": "+50 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Supercharge",
+        "description": "+50 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Alien Alliance",
+        "description": "+50 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Solar Core Boost",
+        "description": "+50 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Black Hole Bonanza",
+        "description": "+50 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Windfall",
+        "description": "+50 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Surge",
+        "description": "+50 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      50,
+        "cost":        250_000_000,
+        "purchased":   False
+    },
+
+    # ───────────────────────────────────────────────────────────────────────────────
+    {
+        "name":        "Celestial Convergence",
+        "description": "All business profits ×11",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  11.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Astro‐Paper Swap",
+        "description": "+25 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket‐Fuel Remap",
+        "description": "+25 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Lore",
+        "description": "+25 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Stream",
+        "description": "+25 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Outpost Overdrive",
+        "description": "+25 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Solar‐Wind Sync",
+        "description": "+25 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Gravity Glyph",
+        "description": "+25 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Wealth Transfer",
+        "description": "+25 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Stimulus II",
+        "description": "+25 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        250_000_000_000,
+        "purchased":   False
+    },
+
+    # ───────────────────────────────────────────────────────────────────────────────
+    {
+        "name":        "Unifying Umbra",
+        "description": "All business profits ×15",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  15.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Sextillion
+        "purchased":   False
+    },
+    {
+        "name":        "Satellite Supremacy II",
+        "description": "+75 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,     # 10 Sextillion
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket Resurgence II",
+        "description": "+75 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Legion II",
+        "description": "+75 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Surge II",
+        "description": "+75 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Outpost Overload II",
+        "description": "+75 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Solar‐Wing Amplifier",
+        "description": "+75 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Event Horizon Harvest",
+        "description": "+75 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Warchest II",
+        "description": "+75 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Spartans II",
+        "description": "+75 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      75,
+        "cost":        10_000_000_000_000_000,
+        "purchased":   False
+    },
+    {
+        "name":        "Infinite Incentive",
+        "description": "All business profits ×3",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        333_000_000_000_000_000_000,  # 333 Quintrigintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Asteroid Accretion",
+        "description": "+25 Asteroid Miners",
+        "icon_image":  "assets/asteroidminer.png",
+        "biz_index":   0,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      25,
+        "cost":        700_000_000_000_000_000_000,  # 700 Quattuorvigintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Satellite Supremacy III",
+        "description": "+30 Satellite Networks",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket Riddle",
+        "description": "+30 Rocket Yards",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Luminance",
+        "description": "+30 Lunar Colonies",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Synchrotron",
+        "description": "+30 Starlight Farms",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Outpost Oasis",
+        "description": "+30 Alien Outposts",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Solar Skyforge",
+        "description": "+30 Solar Arrays",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Black Hole Bonanza III",
+        "description": "+30 Black Hole Labs",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Web",
+        "description": "+30 Wormhole Gates",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Supremacy III",
+        "description": "+30 Galactic Senates",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "add_units",
+        "multiplier":  0,
+        "amount":      30,
+        "cost":        30_000_000_000_000_000_000_000,  # 30 Novemdecillion
+        "purchased":   False
+    },
+    {
+        "name":        "Universal Uplift",
+        "description": "All business profits ×7.777777",
+        "icon_image":  "assets/global.png",
+        "biz_index":   None,
+        "type":        "global",
+        "multiplier":  7.777777,
+        "amount":      0,
+        "cost":        777_000_000_000_000_000_000,  # 777 Unvigintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Asteroid Amplifier",
+        "description": "Asteroid Miner profit ×3",
+        "icon_image":  "assets/asteroidminer.png",
+        "biz_index":   0,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Satellite Surge",
+        "description": "Satellite Network profit ×3",
+        "icon_image":  "assets/satellitenetwork.png",
+        "biz_index":   1,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Rocket Re‐Energizer",
+        "description": "Rocket Yard profit ×3",
+        "icon_image":  "assets/rocketyard.png",
+        "biz_index":   2,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Lunar Luminosity",
+        "description": "Lunar Colony profit ×3",
+        "icon_image":  "assets/lunarcolony.png",
+        "biz_index":   3,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Starlight Shine",
+        "description": "Starlight Farm profit ×3",
+        "icon_image":  "assets/starlightfarm.png",
+        "biz_index":   4,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {  
+        "name":        "Outpost Overdrive III",
+        "description": "Alien Outpost profit ×3",
+        "icon_image":  "assets/alienoutpost.png",
+        "biz_index":   5,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Solar Supernova",
+        "description": "Solar Array profit ×3",
+        "icon_image":  "assets/solararray.png",
+        "biz_index":   6,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Black Hole Bonanza IV",
+        "description": "Black Hole Labs profit ×3",
+        "icon_image":  "assets/blackholelabs.png",
+        "biz_index":   7,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Wormhole Warchest III",
+        "description": "Wormhole Gate profit ×3",
+        "icon_image":  "assets/wormholegate.png",
+        "biz_index":   8,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    },
+    {
+        "name":        "Senate Supremacy IV",
+        "description": "Galactic Senate profit ×3",
+        "icon_image":  "assets/galacticsenate.png",
+        "biz_index":   9,
+        "type":        "profit",
+        "multiplier":  3.0,
+        "amount":      0,
+        "cost":        1_000_000_000_000_000_000,  # 1 Quintillion
+        "purchased":   False
+    }
+]
+
 
     # ───────────────────────────────────────
     # “Capitalist” (global) unlocks (Earth)
     # ───────────────────────────────────────
-
+capitalist_upgrades = [
     {
         "name":        "Mogul",
         "description": "Profit Speed Doubled once you have 25 of every business",
