@@ -5,12 +5,11 @@ import json
 import math
 import time
 
-
 pygame.init()
 
-# --------------------------------------------------------------------------------
-# 1. RESOURCE PATH HELPER
-# --------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
+# 1. RESOURCE PATH HELPERS
+# -------------------------------------------------------------------------------
 def resource_path(relative_path):
     """
     Return absolute path to resource, works for development and for PyInstaller EXE.
@@ -58,7 +57,7 @@ def load_game():
         print(f"Error loading game from {path}: {e}")
         return None
 
-# --------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------
 # 3. UI UTILITIES
 # -------------------------------------------------------------------------------
 def format_number_parts(n):
@@ -155,23 +154,16 @@ def calculate_offline_earnings(data_loaded: dict, now_ts: float):
         if effective_time <= 0:
             continue
 
-        # How many full cycles could have run
         cycles = math.floor(offline_seconds / effective_time)
-
         one_cycle_value = biz_saved["base_payout"] * owned * biz_saved["profit_mult"] * global_profit_mult * (1.0 + 0.02 * galactic_investors_total)
 
         if cycles > 0:
-            # Pay for all full cycles
             earned = one_cycle_value * cycles
             total_offline_earn += earned
 
-            # Calculate remainder time after those cycles
             remainder = offline_seconds - (cycles * effective_time)
-
             if biz_saved.get("has_manager", False):
-                # Keep it in progress with leftover time
                 if remainder >= effective_time:
-                    # Could complete one more cycle if remainder large (rare)
                     total_offline_earn += one_cycle_value
                     biz_saved["in_progress"] = True
                     biz_saved["timer"] = effective_time - (remainder - effective_time)
@@ -179,7 +171,6 @@ def calculate_offline_earnings(data_loaded: dict, now_ts: float):
                     biz_saved["in_progress"] = True
                     biz_saved["timer"] = effective_time - remainder
             else:
-                # Without manager, it just finishes and idles
                 if remainder >= effective_time:
                     total_offline_earn += one_cycle_value
                     biz_saved["in_progress"] = False
@@ -188,14 +179,12 @@ def calculate_offline_earnings(data_loaded: dict, now_ts: float):
                     biz_saved["in_progress"] = True
                     biz_saved["timer"] = effective_time - remainder
 
-            continue  # Done handling cycles
+            continue
 
-        # If no full cycles fit, but there may have been a partial cycle
         saved_timer = biz_saved.get("timer", 0.0)
         if saved_timer > 0:
             new_timer = saved_timer - offline_seconds
             if new_timer <= 0:
-                # It finished exactly one cycle while offline
                 total_offline_earn += one_cycle_value
                 biz_saved["in_progress"] = False
                 biz_saved["timer"] = 0.0
@@ -203,7 +192,6 @@ def calculate_offline_earnings(data_loaded: dict, now_ts: float):
                 biz_saved["in_progress"] = True
                 biz_saved["timer"] = new_timer
 
-    # Add offline earnings into the saved state
     data_loaded["money"] += total_offline_earn
     data_loaded["space_lifetime_earnings"] += total_offline_earn
     data_loaded["last_timestamp"] = now_ts
@@ -218,7 +206,7 @@ def default_game_state():
     Returns a fresh initial game state dictionary with all needed fields.
     """
     return {
-        "money": 5.0,
+        "money": 5000000000000000.0,
         "space_lifetime_earnings": 0.0,
         "global_speed_mult": 1.0,
         "global_profit_mult": 1.0,
@@ -232,13 +220,13 @@ def default_game_state():
     }
 
 # -------------------------------------------------------------------------------
-# 6. PYGAME SETUP & CUSTOM WINDOW ICON
+# 6. PYGAME SETUP & ICON
 # -------------------------------------------------------------------------------
 WIDTH, HEIGHT = 1200, 720
 screen = pygame.display.set_mode((WIDTH, HEIGHT), pygame.RESIZABLE)
 pygame.display.set_caption("SpaceRace")
 
-# Load and set window icon using starlightfarm.png, scaled to 96×96
+# Load & set window icon (using starlightfarm.png if available)
 icon_path = resource_path("assets/starlightfarm.png")
 if os.path.isfile(icon_path):
     try:
@@ -254,24 +242,25 @@ FPS = 60
 clock = pygame.time.Clock()
 
 WHITE              = (235, 235, 245)
-ACCENT             = (82, 130, 255)   # Accent color (blue)
+ACCENT             = (82, 130, 255)
 BG_DARK            = (30, 32, 41)
 PANEL_DARK         = (42, 44, 58)
 SIDEBAR_BG         = (36, 37, 50)
 BUSINESS_BG        = (48, 52, 70)
 BUSINESS_BG_LOCKED = (38, 40, 50)
 PROGRESS_BG        = (40, 44, 55)
-PROGRESS_FILL      = (90, 200, 150)  # Light‐green fill
+PROGRESS_FILL      = (90, 200, 150)
 DARKER_GREEN       = (0, 100, 0, 120)
 BTN_HOVER          = (90, 110, 200)
 GRAYED             = (110, 110, 120)
 YELLOW             = (255, 200, 100)
+RED_DOT            = (220, 50, 50)
 
 font_big   = pygame.font.SysFont(None, 44)
 font_med   = pygame.font.SysFont(None, 32)
 font_small = pygame.font.SysFont(None, 20)
 
-# SCROLL OFFSETS & DRAGGING STATE
+# Scroll offsets & dragging state
 business_scroll      = 0
 manager_scroll       = 0
 upgrade_scroll       = 0
@@ -307,6 +296,123 @@ first_time_popup       = False
 first_time_popup_rect  = None
 first_time_popup_close = None
 
+# ────────────────────────────────────────────────────────────────────────────────
+# Keep track of which upgrades were affordable the last time Upgrades tab was viewed
+# ────────────────────────────────────────────────────────────────────────────────
+prev_affordable_upgrades = set()
+
+# -------------------------------------------------------------------------------
+# 7. BUSINESS DEFINITIONS
+# -------------------------------------------------------------------------------
+units = [
+    " ",                      # 10^0
+    " Thousand",              # 10^3
+    " Million",               # 10^6
+    " Billion",               # 10^9
+    " Trillion",              # 10^12
+    " Quadrillion",           # 10^15
+    " Quintillion",           # 10^18
+    " Sextillion",            # 10^21
+    " Septillion",             # 10^24
+    " Octillion",             # 10^27
+    " Nonillion",             # 10^30
+    " Decillion",             # 10^33
+    " Undecillion",           # 10^36
+    " Duodecillion",          # 10^39
+    " Tredécillion",          # 10^42
+    " Quattuordecillion",     # 10^45
+    " Quindecillion",         # 10^48
+    " Sexdecillion",          # 10^51
+    " Septendecillion",       # 10^54
+    " Octodecillion",         # 10^57
+    " Novemdecillion",        # 10^60
+    " Vigintillion",          # 10^63
+    " Unvigintillion",        # 10^66
+    " Duovigintillion",       # 10^69
+    " Trevigintillion",       # 10^72
+    " Quattuorvigintillion",  # 10^75
+    " Quinvigintillion",      # 10^78
+    " Sexvigintillion",       # 10^81
+    " Septenvigintillion",    # 10^84
+    " Octovigintillion",      # 10^87
+    " Novemvigintillion",     # 10^90
+    " Trigintillion",         # 10^93
+    " Untrigintillion",       # 10^96
+    " Duotrigintillion",      # 10^99
+    " Trestrigintillion",     # 10^102
+    " Quattuortrigintillion", # 10^105
+    " Quintrigintillion",     # 10^108
+    " Sextrigintillion",      # 10^111
+    " Septentrigintillion",   # 10^114
+    " Octotrigintillion",     # 10^117
+    " Novemtrigintillion",    # 10^120
+    " Quadragintillion",      # 10^123
+    " Unquadragintillion",    # 10^126
+    " Duoquadragintillion",   # 10^129
+    " Trequadragintillion",   # 10^132
+    " Quattuorquadragintillion", # 10^135
+    " Quinquadragintillion",  # 10^138
+    " Sexquadragintillion",   # 10^141
+    " Septenquadragintillion",# 10^144
+    " Octoquadragintillion",  # 10^147
+    " Novemquadragintillion", # 10^150
+    " Quinquagintillion",     # 10^153
+    " Unquinquagintillion",   # 10^156
+    " Duoquinquagintillion",  # 10^159
+    " Trequinquagintillion",  # 10^162
+    " Quattuorquinquagintillion", # 10^165
+    " Quinquinquagintillion", # 10^168
+    " Sexquinquagintillion",  # 10^171
+    " Septenquinquagintillion",# 10^174
+    " Octoquinquagintillion", # 10^177
+    " Novemquinquagintillion",# 10^180
+    " Sexagintillion",        # 10^183
+    " Unsexagintillion",      # 10^186
+    " Duosexagintillion",     # 10^189
+    " Tresexagintillion",     # 10^192
+    " Quattuorsexagintillion",# 10^195
+    " Quinsexagintillion",    # 10^198
+    " Sexsexagintillion",     # 10^201
+    " Septensexagintillion",  # 10^204
+    " Octosexagintillion",    # 10^207
+    " Novemsexagintillion",   # 10^210
+    " Septuagintillion",      # 10^213
+    " Unseptuagintillion",    # 10^216
+    " Duoseptuagintillion",   # 10^219
+    " Treseptuagintillion",   # 10^222
+    " Quattuorseptuagintillion", # 10^225
+    " Quinseptuagintillion",  # 10^228
+    " Sexseptuagintillion",   # 10^231
+    " Septenseptuagintillion",# 10^234
+    " Octoseptuagintillion",  # 10^237
+    " Novemseptuagintillion", # 10^240
+    " Octogintillion",        # 10^243
+    " Unoctogintillion",      # 10^246
+    " Duooctogintillion",     # 10^249
+    " Treoctogintillion",     # 10^252
+    " Quattuoroctogintillion",# 10^255
+    " Quinoctogintillion",    # 10^258
+    " Sexoctogintillion",     # 10^261
+    " Septenoctogintillion",  # 10^264
+    " Octooctogintillion",    # 10^267
+    " Novemoctogintillion",   # 10^270
+    " Nonagintillion",        # 10^273
+    " Unnonagintillion",      # 10^276
+    " Duononagintillion",     # 10^279
+    " Trenonagintillion",     # 10^282
+    " Quattuornonagintillion",# 10^285
+    " Quinnonagintillion",    # 10^288
+    " Sexnonagintillion",     # 10^291
+    " Septennonagintillion",  # 10^294
+    " Octononagintillion",    # 10^297
+    " Novemnonagintillion",   # 10^300
+    " Centillion"             # 10^303
+]
+
+
+# -----------------------------------
+# Upgrades list (sorted by cost ascending)
+# -----------------------------------
 # -------------------------------------------------------------------------------
 # 7. BUSINESS DEFINITIONS
 # -------------------------------------------------------------------------------
@@ -4061,7 +4167,6 @@ galactic_upgrades = [
     }
 ]
 
-
 # -------------------------------------------------------------------------------
 # 11. LOAD ALL BUSINESS IMAGES & GLOBAL ICON & STATS ICON
 # -------------------------------------------------------------------------------
@@ -4069,11 +4174,10 @@ def load_all_business_images():
     """
     Loads and scales images for each business, global unlocks, upgrades, and the stats icon.
     - Businesses use their own 'asset_path'.
-    - Global unlocks (biz_index=None) use 'assets/global.png'.
+    - Unlocks with biz_index=None use 'assets/global.png'.
     - Cash-upgrades with biz_index=None also use the global icon.
     - The stats button uses 'assets/stats.png'.
     """
-
     # ─── LOAD BUSINESS IMAGES (96×96) ───
     for biz in businesses:
         rel = biz.get("asset_path")
@@ -4096,29 +4200,24 @@ def load_all_business_images():
         try:
             gimg = pygame.image.load(global_abs).convert_alpha()
             gimg = pygame.transform.smoothscale(gimg, (96, 96))
-            # Assign to any unlock where biz_index is None
             for u in unlocks:
                 if u.get("biz_index") is None:
                     u["image"] = gimg
         except Exception:
-            # If loading fails, set those to None
             for u in unlocks:
                 if u.get("biz_index") is None:
                     u["image"] = None
     else:
-        # If file doesn't exist, set unlock images to None
         for u in unlocks:
             if u.get("biz_index") is None:
                 u["image"] = None
 
     # ─── ASSIGN GLOBAL ICON TO CASH-UPGRADES (biz_index=None) ───
     if 'gimg' in locals():
-        # If gimg loaded successfully, reuse it for upgrades with no biz_index
         for upg in upgrades:
             if upg.get("biz_index") is None:
                 upg["image"] = gimg
     else:
-        # Otherwise, set those upgrade images to None
         for upg in upgrades:
             if upg.get("biz_index") is None:
                 upg["image"] = None
@@ -4134,8 +4233,6 @@ def load_all_business_images():
     except Exception:
         globals()["stats_icon"] = None
 
-
-# Call once at startup so that every biz["image"], global unlock images, and stats button icon are set.
 load_all_business_images()
 
 # -------------------------------------------------------------------------------
@@ -4187,11 +4284,9 @@ if loaded is None:
     cb_y = py + 12
     first_time_popup_close = pygame.Rect(cb_x, cb_y, cb_size, cb_size)
 
-    # For “investment cycle” stats:
     cycle_start_time  = time.time()
     cycle_start_money = money
 
-    # Initialize stats
     click_count = 0
     session_start_time = time.time()
     playtime_this_prestige = 0.0
@@ -4200,7 +4295,7 @@ if loaded is None:
 else:
     game_state = loaded
 
-    # Restore all per-business fields (use get defaults for old saves)
+    # Restore all per-business fields (use defaults for missing keys)
     for idx, biz_saved in enumerate(game_state["businesses"]):
         biz = businesses[idx]
         biz["owned"]       = biz_saved.get("owned", 0)
@@ -4211,25 +4306,27 @@ else:
         biz["timer"]       = biz_saved.get("timer", 0.0)
         biz["in_progress"] = biz_saved.get("in_progress", False)
 
-    # Restore all cash-upgrades
+    # Restore upgrades safely (guard against saved list being longer)
     for i, upg_saved in enumerate(game_state["upgrades"]):
-        upgrades[i]["purchased"] = upg_saved.get("purchased", False)
+        if i < len(upgrades):
+            upgrades[i]["purchased"] = upg_saved.get("purchased", False)
 
     unlocked_shown = set(game_state.get("unlocked_shown", []))
 
-    # Restore all Angel-style (galactic) upgrades
+    # Restore galactic_upgrades safely
     for i, gu_saved in enumerate(game_state.get("galactic_upgrades", [])):
-        galactic_upgrades[i]["purchased"] = gu_saved.get("purchased", False)
+        if i < len(galactic_upgrades):
+            galactic_upgrades[i]["purchased"] = gu_saved.get("purchased", False)
 
     # Restore core numeric values
-    money                       = game_state.get("money", 5.0)
+    money                       = game_state.get("money", 5000000000000000.0)
     space_lifetime_earnings     = game_state.get("space_lifetime_earnings", 0.0)
     global_speed_mult           = game_state.get("global_speed_mult", 1.0)
     global_profit_mult          = game_state.get("global_profit_mult", 1.0)
     galactic_investors_total    = game_state.get("galactic_investors_total", 0)
     galactic_investors_spent    = game_state.get("galactic_investors_spent", 0)
 
-    # Calculate offline earnings, adjusting saved timers accordingly
+    # Offline earnings & timer adjustments
     now_ts = time.time()
     offline_earned = calculate_offline_earnings(game_state, now_ts)
     if offline_earned > 0:
@@ -4241,22 +4338,16 @@ else:
         }
         popup_end_time = pygame.time.get_ticks() + 3000
 
-    # Reload images so biz["image"] and global unlock images are present
     load_all_business_images()
 
-    # For “investment cycle” stats: assume they just loaded back in
     cycle_start_time  = now_ts
     cycle_start_money = money
 
-    # Restore stats if you saved them; otherwise start fresh
     click_count = game_state.get("click_count", 0)
     session_start_time = now_ts - game_state.get("total_playtime", 0.0)
     playtime_this_prestige = game_state.get("playtime_this_prestige", 0.0)
     total_playtime = game_state.get("total_playtime", 0.0)
 
-# -------------------------------------------------------------------------------
-# 13. RESTORE STATE FOR FIRST-TIME LOAD
-# -------------------------------------------------------------------------------
 if loaded is None:
     for idx, biz in enumerate(businesses):
         game_state["businesses"][idx] = {
@@ -4276,13 +4367,12 @@ if loaded is None:
     for idx, gu in enumerate(galactic_upgrades):
         game_state["galactic_upgrades"][idx] = {"purchased": gu["purchased"]}
 
-    # Also store initial stats
     game_state["click_count"] = click_count
     game_state["playtime_this_prestige"] = playtime_this_prestige
     game_state["total_playtime"] = total_playtime
 
 # -------------------------------------------------------------------------------
-# 14. APPLY UNLOCKS HELPER
+# 13. APPLY UNLOCKS HELPER
 # -------------------------------------------------------------------------------
 def apply_single_unlock(idx):
     """
@@ -4297,14 +4387,12 @@ def apply_single_unlock(idx):
     descr = u["description"]
 
     if u["biz_index"] is not None:
-        # per-business unlock
         biz = businesses[u["biz_index"]]
         if u["type"] == "speed":
             biz["speed_mult"] *= u["multiplier"]
         elif u["type"] == "profit":
             biz["profit_mult"] *= u["multiplier"]
     else:
-        # global unlock: type might be "global_speed" or "global_profit"
         if u["type"] == "global_speed":
             global_speed_mult *= u["multiplier"]
         elif u["type"] == "global_profit":
@@ -4314,35 +4402,48 @@ def apply_single_unlock(idx):
         "text": descr,
         "requirement": "Press X to close"
     }
-    popup_end_time = pygame.time.get_ticks() + 2000  # show for 2 seconds
+    popup_end_time = pygame.time.get_ticks() + 2000
 
     unlocked_shown.add(idx)
 
 # -------------------------------------------------------------------------------
-# 15. UI DRAW FUNCTIONS
+# 14. UI DRAW FUNCTIONS
 # -------------------------------------------------------------------------------
 def draw_sidebar(surface, mouse_pos, mouse_clicked):
     """
     Draw the left sidebar and detect clicks on: Managers, Upgrades, Unlocks, Investors,
-    plus the Stats icon at the bottom-left.
-    Return an integer index for which overlay to open:
-      0 = Managers
-      1 = Upgrades
-      2 = Unlocks
-      3 = Investors
-      4 = Stats
-    Or None if nothing clicked.
+    plus the Stats icon at the bottom-left. Return an integer index for which overlay to open:
+      0 = Managers, 1 = Upgrades, 2 = Unlocks, 3 = Investors, 4 = Stats, or None.
+    If there is any *new* affordable, unpurchased upgrade while the Upgrades tab is not open,
+    draw a red notification dot on the Upgrades button.
     """
     pygame.draw.rect(surface, SIDEBAR_BG, (0, 0, SIDEBAR_WIDTH, HEIGHT))
     title_surf = font_big.render("SpaceRace", True, WHITE)
     surface.blit(title_surf, ((SIDEBAR_WIDTH // 2) - (title_surf.get_width() // 2), 20))
+
     btn_h = 50
     spacing = 20
     y_start = 100
     result = None
 
+    # ────────────────────────────────────────────────────────
+    # Determine which upgrades are currently affordable
+    current_affordable = set(
+        i for i, upg in enumerate(upgrades)
+        if (not upg["purchased"]) and (money >= upg["cost"])
+    )
+
+    # The dot appears only if there's at least one index in current_affordable
+    # that was not already in prev_affordable_upgrades, and we're not in the Upgrades tab
+    upgrade_notification = False
+    if overlay_mode != "Upgrades":
+        if current_affordable - prev_affordable_upgrades:
+            upgrade_notification = True
+
+    # ────────────────────────────────────────────────────────
     # Top four menu items
-    for i, label_text in enumerate(["Managers", "Upgrades", "Unlocks", "Investors"]):
+    labels = ["Managers", "Upgrades", "Unlocks", "Investors"]
+    for i, label_text in enumerate(labels):
         y = y_start + i * (btn_h + spacing)
         rect = pygame.Rect(20, y, SIDEBAR_WIDTH - 40, btn_h)
         hovered = rect.collidepoint(mouse_pos)
@@ -4354,17 +4455,23 @@ def draw_sidebar(surface, mouse_pos, mouse_clicked):
             (rect.x + (rect.w - label.get_width()) // 2,
              rect.y + (rect.h - label.get_height()) // 2)
         )
+
+        # If this is the Upgrades button and we need a notification, draw a red dot
+        if i == 1 and upgrade_notification:
+            dot_radius = 6
+            dot_x = rect.right - dot_radius - 8
+            dot_y = rect.top + dot_radius + 8
+            pygame.draw.circle(surface, RED_DOT, (dot_x, dot_y), dot_radius)
+
         if hovered and mouse_clicked:
             result = i  # 0..3
 
-    # ─── NEW: bottom-left Stats icon (50×50) ───
+    # ─── bottom-left Stats icon (50×50) ───
     stats_size    = 50
     stats_x    = 20
     stats_y    = HEIGHT - 20 - stats_size
-
     stats_rect    = pygame.Rect(stats_x, stats_y, stats_size, stats_size)
 
-    # Draw Stats icon background & icon
     hovered_t = stats_rect.collidepoint(mouse_pos)
     bg_color_t = BTN_HOVER if hovered_t else PANEL_DARK
     pygame.draw.rect(surface, bg_color_t, stats_rect, border_radius=8)
@@ -4423,6 +4530,10 @@ def draw_header(surface, money, mouse_pos, mouse_clicked):
                 break
 
 def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
+    """
+    Draw all businesses in two columns inside a scrollable panel.
+    Return (unlock_clicked_index, buy_clicked_index).
+    """
     global business_scroll, money, global_speed_mult, space_lifetime_earnings, global_profit_mult
 
     stripe_threshold = 0.7  # threshold (in seconds) for "fast-cycle" visual
@@ -4435,6 +4546,9 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
     max_scroll    = max(0, content_height - PANEL_HEIGHT)
     business_scroll = max(0, min(business_scroll, max_scroll))
 
+    unlock_clicked = None
+    buy_clicked    = None
+
     for idx, biz in enumerate(businesses):
         col = 0 if idx < n_per_column else 1
         row = idx if col == 0 else idx - n_per_column
@@ -4446,13 +4560,13 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
         unlocked = biz["unlocked"]
         bg_col   = BUSINESS_BG if unlocked else BUSINESS_BG_LOCKED
 
-        # Only draw if visible within panel bounds
+        # Only draw if within visible panel bounds
         if y + ROW_HEIGHT < PANEL_Y or y > PANEL_Y + PANEL_HEIGHT:
             continue
 
-        pygame.draw.rect(surface, bg_col, biz_rect, border_radius=18)
+        pygame.draw.rect(surface, bg_col, (x, y, biz_rect.w, biz_rect.h), border_radius=18)
 
-        # ICON: draw scaled 96×96 image if available; else fallback to emoji
+        # ICON
         if biz.get("image"):
             icon_surf = biz["image"]
             icon_x = x
@@ -4489,6 +4603,7 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
         surface.blit(owned_surf, (x + 100, second_y))
         surface.blit(earn_surf, (x + 100 + owned_surf.get_width() + 20, second_y))
 
+        # Determine how many to buy at once
         opt = purchase_options[purchase_index]
         if opt == -1:
             count = max_affordable(biz, money)
@@ -4499,6 +4614,7 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
 
         total_cost = total_cost_for_next_N(biz, count)
 
+        # BUY button is now moved above the progress bar
         btn_w = 140
         btn_h = 50
         btn_x = x + biz_rect.w - btn_w - 10
@@ -4506,7 +4622,7 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
         btn_rect = pygame.Rect(btn_x, btn_y, btn_w, btn_h)
 
         mant, suff = format_number_parts(total_cost)
-        can_buy     = (money >= total_cost and count > 0)
+        can_buy     = (money >= total_cost and count > 0 and unlocked)
         hovered_btn = btn_rect.collidepoint(mouse_pos)
 
         if can_buy:
@@ -4530,9 +4646,10 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
         surface.blit(left2,  (btn_x + 8, line2_y))
         surface.blit(right2, (btn_x + btn_w - right2.get_width() - 8, line2_y))
 
-        if hovered_btn and mouse_clicked and can_buy and unlocked:
+        if hovered_btn and mouse_clicked and can_buy:
             money -= total_cost
             biz["owned"] += count
+            buy_clicked = idx
 
         if not unlocked:
             overlay_surf2 = pygame.Surface((biz_rect.w, biz_rect.h), pygame.SRCALPHA)
@@ -4553,6 +4670,7 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
                 biz["unlocked"] = True
                 biz["in_progress"] = False
                 biz["timer"]    = 0.0
+                unlock_clicked = idx
             continue
 
         # ICON CLICK TO START PRODUCTION (96×96 hitbox)
@@ -4566,44 +4684,35 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
             effective_time = (biz["base_time"] / biz["speed_mult"]) / global_speed_mult
             biz["timer"] = effective_time
 
-        # ─── PROGRESS BAR WITH FIXED-LOGIC FOR FAST-CYCLE OVERLAY ───
+        # ─── PROGRESS BAR WITH FAST‐CYCLE OVERLAY LOGIC ───
         bar_x = x + 100
         bar_y = y + 80
         bar_w = biz_rect.w - 170
         bar_h = 18
 
-        # Draw the background of the progress bar
         pygame.draw.rect(surface, PROGRESS_BG, (bar_x, bar_y, bar_w, bar_h), border_radius=7)
 
         if biz["in_progress"]:
             effective_time = (biz["base_time"] / biz["speed_mult"]) / global_speed_mult
-
-            # Decrement timer
             prev_timer = biz["timer"]
-            biz["timer"] -= dt
-
-            # Check if we just reached zero
+            biz["timer"] -= dt * biz["speed_mult"] * global_speed_mult
             reached_zero = False
             if biz["timer"] <= 0:
                 biz["timer"] = 0.0
                 reached_zero = True
 
-            # Compute pct only for normal-speed
             pct = max(0.0, min(1.0, 1.0 - (biz["timer"] / effective_time))) if effective_time > 0 else 0.0
             fill_w = int(bar_w * pct)
 
-            # If cycle is faster than threshold, always show full bar + stripes
             if effective_time <= stripe_threshold:
-                # ─── FAST-CYCLE: full fill + dark-green stripes overlay ───
+                # FAST‐CYCLE: full fill + dark‐green stripes overlay
                 pygame.draw.rect(surface, PROGRESS_FILL, (bar_x, bar_y, bar_w, bar_h), border_radius=7)
-
                 clip_rect = pygame.Rect(bar_x, bar_y, bar_w, bar_h)
                 surface.set_clip(clip_rect)
 
                 stripe_w = 20
-                stripe_speed = 200  # pixels per second for overlay animation
+                stripe_speed = 200
                 offset = int((pygame.time.get_ticks() / 1000.0) * stripe_speed) % (stripe_w + 20)
-
                 stripe_surf = pygame.Surface((stripe_w, bar_h), pygame.SRCALPHA)
                 stripe_surf.fill(DARKER_GREEN)
 
@@ -4611,15 +4720,11 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
                 while x_pos < bar_x + bar_w:
                     surface.blit(stripe_surf, (x_pos, bar_y))
                     x_pos += stripe_w + 20
-
                 surface.set_clip(None)
-
             else:
-                # ─── NORMAL: solid partial fill only ───
                 if fill_w > 0:
                     pygame.draw.rect(surface, PROGRESS_FILL, (bar_x, bar_y, fill_w, bar_h), border_radius=7)
 
-            # After drawing, if we reached zero, process payout and restart logic
             if reached_zero:
                 profit_mult = (
                     (1.0 + (0.02 * galactic_investors_total))
@@ -4631,16 +4736,31 @@ def draw_business_panel(surface, dt, mouse_pos, mouse_clicked):
                 space_lifetime_earnings += payout_val
 
                 if biz["has_manager"]:
-                    # Automatically restart production
                     biz["in_progress"] = True
+                    effective_time = (biz["base_time"] / biz["speed_mult"]) / global_speed_mult
                     biz["timer"] = effective_time
                 else:
                     biz["in_progress"] = False
 
+            # ─── TIMER BOX just below Buy button and to the left of the progress bar ───
+            timer_text = format_time(biz["timer"])
+            tw_surf = font_small.render(timer_text, True, WHITE)
+            tw_w, tw_h = tw_surf.get_size()
+            box_w_t = tw_w + 12
+            box_h_t = tw_h + 8
+            box_x_t = bar_x - box_w_t - 8
+            box_y_t = btn_y + btn_h + 2
+            timer_box = pygame.Surface((box_w_t, box_h_t), pygame.SRCALPHA)
+            timer_box.fill((40, 44, 55, 200))
+            surface.blit(timer_box, (box_x_t, box_y_t))
+            surface.blit(tw_surf, (box_x_t + 6, box_y_t + 4))
+
+    # ←── Return must occur *after* the loop finishes, not inside it ──→
+    return unlock_clicked, buy_clicked
+
 def draw_managers_ui(surface, mouse_pos, mouse_clicked):
     global close_btn_rect, money, manager_scroll, manager_dragging, manager_drag_offset
 
-    # 1) DRAW OVERLAY + BACKGROUND BOX
     overlay_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay_surf.fill((30, 30, 40, 210))
     surface.blit(overlay_surf, (0, 0))
@@ -4651,7 +4771,7 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
     box_y = (HEIGHT - box_h) // 2
     pygame.draw.rect(surface, PANEL_DARK, (box_x, box_y, box_w, box_h), border_radius=12)
 
-    # 2) TITLE + CLOSE BUTTON
+    # TITLE + CLOSE BUTTON
     t_surf = font_big.render("Hire Managers", True, WHITE)
     surface.blit(t_surf, (box_x + (box_w - t_surf.get_width()) // 2, box_y + 20))
 
@@ -4667,14 +4787,12 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
          close_y + (close_size - x_surf.get_height()) // 2)
     )
 
-    # 3) COLUMN POSITIONS
     header_y = box_y + 60
-    col1_x = box_x + 20       # icon column
-    col2_x = box_x + 100      # name + description
-    col3_x = box_x + box_w - 280  # cost
-    col4_x = box_x + box_w - 120  # button
+    col1_x = box_x + 20
+    col2_x = box_x + 100
+    col3_x = box_x + box_w - 280
+    col4_x = box_x + box_w - 120
 
-    # 4) SCROLL CLIPPING
     mgr_list_y0  = header_y + 40
     scroll_top    = mgr_list_y0
     scroll_bottom = box_y + box_h - 20
@@ -4685,53 +4803,47 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
     mgr_entry_h = 60
     spacing     = 10
 
-    # 5) COMPUTE TOTAL CONTENT HEIGHT USING ALL BUSINESSES
     total_content_h = len(businesses) * (mgr_entry_h + spacing)
     max_mgr_scroll  = max(0, total_content_h - visible_h)
     manager_scroll  = max(0, min(manager_scroll, max_mgr_scroll))
 
     y_offset = mgr_list_y0 - manager_scroll
 
-    # 6) DRAW EACH BUSINESS (locked or unlocked)
     for biz in businesses:
         biz_unlocked = biz["unlocked"]
         biz_has_mgr  = biz["has_manager"]
         cost_val     = biz["manager_cost"]
         cost_mant, cost_suff = format_number_parts(cost_val)
 
-        # Skip rows that are off-screen
         if (y_offset + mgr_entry_h < scroll_top) or (y_offset > scroll_bottom):
             y_offset += mgr_entry_h + spacing
             continue
 
-        # Draw row background
         entry_rect = pygame.Rect(box_x + 10, y_offset, box_w - 20, mgr_entry_h)
         pygame.draw.rect(surface, (50, 50, 70), entry_rect, border_radius=8)
 
-        # ─── ICON ───
+        # ICON
         icon_size = 60
         icon_y    = y_offset + (mgr_entry_h - icon_size) // 2
         if biz.get("image"):
             icon_surf = pygame.transform.smoothscale(biz["image"], (icon_size, icon_size))
             if not biz_unlocked:
-                # Grey‐out locked icon
                 locked_img = icon_surf.copy()
                 locked_img.fill((100, 100, 100, 150), special_flags=pygame.BLEND_RGBA_MULT)
                 surface.blit(locked_img, (col1_x, icon_y))
             else:
                 surface.blit(icon_surf, (col1_x, icon_y))
         else:
-            # Fallback emoji
             color = GRAYED if not biz_unlocked else WHITE
             icosurf = font_big.render(biz["icon"], True, color)
             surface.blit(icosurf, (col1_x, icon_y))
 
-        # ─── BUSINESS NAME ───
+        # NAME
         name_color = GRAYED if not biz_unlocked else YELLOW
         name_surf  = font_med.render(biz["name"], True, name_color)
         surface.blit(name_surf, (col2_x, y_offset + 6))
 
-        # ─── DESCRIPTION or “Locked until unlocked” ───
+        # DESCRIPTION or “Locked”
         if biz_unlocked:
             effect_text = "Automatically restarts production when idle"
         else:
@@ -4739,13 +4851,12 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
         effect_surf = font_small.render(effect_text, True, GRAYED)
         surface.blit(effect_surf, (col2_x, y_offset + 30))
 
-        # ─── COST ───
+        # COST
         cost_surf = font_small.render(f"${cost_mant}{cost_suff}", True, ACCENT)
         surface.blit(cost_surf, (col2_x, y_offset + 45))
 
-        # ─── HIRE BUTTON ───
+        # HIRE BUTTON
         hire_rect = pygame.Rect(col4_x, y_offset + 15, 100, 30)
-
         if not biz_unlocked:
             btn_label  = "Locked"
             can_hire   = False
@@ -4755,7 +4866,7 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
             can_hire   = False
             base_color = PANEL_DARK
         else:
-            btn_label  = "Hire Manager"
+            btn_label  = "Hire"
             can_hire   = (money >= cost_val)
             base_color = ACCENT if can_hire else PANEL_DARK
 
@@ -4774,7 +4885,6 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
             )
         )
 
-        # ─── CLICK LOGIC ───
         if hire_rect.collidepoint(mouse_pos) and mouse_clicked and can_hire:
             money -= cost_val
             biz["has_manager"] = True
@@ -4783,13 +4893,10 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
                 effective_time = (biz["base_time"] / biz["speed_mult"]) / global_speed_mult
                 biz["timer"]     = effective_time
 
-        # ─── MOVE TO NEXT ROW ───
         y_offset += mgr_entry_h + spacing
 
-    # 7) UNDO CLIPPING
     surface.set_clip(None)
 
-    # 8) DRAW VERTICAL SCROLLBAR IF NEEDED
     if total_content_h > visible_h:
         track_x = box_x + box_w - 12
         track_y = scroll_top
@@ -4808,7 +4915,7 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
         thumb_color = ACCENT if thumb_rect.collidepoint(mouse_pos) else BTN_HOVER
         pygame.draw.rect(surface, thumb_color, thumb_rect, border_radius=3)
 
-        # HANDLE DRAGGING
+        global manager_dragging, manager_drag_offset
         if mouse_clicked and thumb_rect.collidepoint(mouse_pos):
             manager_dragging = True
             manager_drag_offset = mouse_pos[1] - thumb_y
@@ -4823,9 +4930,8 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
     return close_btn_rect
 
 def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
-    global close_btn_rect, money, upgrade_scroll, upgrade_dragging, upgrade_drag_offset
+    global close_btn_rect, money, upgrade_scroll, upgrade_dragging, upgrade_drag_offset, prev_affordable_upgrades
 
-    # 1) DRAW OVERLAY + BACKGROUND BOX
     overlay_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay_surf.fill((30, 30, 40, 210))
     surface.blit(overlay_surf, (0, 0))
@@ -4836,7 +4942,6 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
     box_y = (HEIGHT - box_h) // 2
     pygame.draw.rect(surface, PANEL_DARK, (box_x, box_y, box_w, box_h), border_radius=12)
 
-    # 2) TITLE + CLOSE BUTTON
     title_surf = font_big.render("Purchase Upgrades", True, WHITE)
     surface.blit(
         title_surf,
@@ -4855,7 +4960,13 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
          close_y + (close_size - x_surf.get_height()) // 2)
     )
 
-    # 3) COLUMN HEADERS (we’ve removed “Icon”, so only “Upgrade” + “Cost”)
+    # As soon as we draw Upgrades UI, clear the notification
+    current_affordable = set(
+        i for i, upg in enumerate(upgrades)
+        if (not upg["purchased"]) and (money >= upg["cost"])
+    )
+    prev_affordable_upgrades = set(current_affordable)
+
     header_y = box_y + 60
     col1_x = box_x + 5
     col2_x = box_x + 60
@@ -4864,7 +4975,6 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
     surface.blit(font_med.render("Upgrade", True, WHITE), (col2_x, header_y))
     surface.blit(font_med.render("Cost", True, WHITE),    (col3_x, header_y))
 
-    # 4) SCROLL REGION CALCULATION
     scroll_top    = header_y + 40
     scroll_bottom = box_y + box_h - 20
     visible_h     = scroll_bottom - scroll_top
@@ -4872,7 +4982,6 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
     entry_h = 80
     spacing = 10
 
-    # 5) SORT ALL UNPURCHASED UPGRADES BY COST (LOW → HIGH)
     unpurchased_upgs = [u for u in upgrades if not u["purchased"]]
     sorted_upgs      = sorted(unpurchased_upgs, key=lambda u: u["cost"])
 
@@ -4880,12 +4989,10 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
     max_scroll      = max(0, total_content_h - visible_h)
     upgrade_scroll  = max(0, min(upgrade_scroll, max_scroll))
 
-    # 6) CLIP TO VISIBLE AREA & INITIAL Y_OFFSET
     clip_rect = pygame.Rect(box_x + 10, scroll_top, box_w - 20, visible_h)
     surface.set_clip(clip_rect)
     y_offset = scroll_top - upgrade_scroll
 
-    # 7) DRAW EACH UPGRADE (GLOBAL OR BUSINESS-SPECIFIC)
     for upg in sorted_upgs:
         if upg["purchased"]:
             y_offset += entry_h + spacing
@@ -4963,14 +5070,13 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
                     b["profit_mult"] *= upg["multiplier"]
             else:
                 businesses[biz_index]["profit_mult"] *= upg["multiplier"]
-
             upg["purchased"] = True
 
             remaining    = [u2 for u2 in upgrades if not u2["purchased"]]
             new_total_h  = len(remaining) * (entry_h + spacing)
             new_max_scroll = max(0, new_total_h - visible_h)
             upgrade_scroll = min(upgrade_scroll + (entry_h + spacing), new_max_scroll)
-        
+
         y_offset += entry_h + spacing
 
     surface.set_clip(None)
@@ -5061,10 +5167,10 @@ def draw_unlocks_ui(surface, mouse_pos, mouse_clicked):
 
     for idx, u in enumerate(unlocks):
         if u["biz_index"] is not None:
-            biz = businesses[u["biz_index"]]
-            is_unlocked = (biz["owned"] >= u["threshold"])
+            b = businesses[u["biz_index"]]
+            is_unlocked = (b["owned"] >= u["threshold"])
         else:
-            is_unlocked = all(b["owned"] >= u["threshold"] for b in businesses)
+            is_unlocked = all(bz["owned"] >= u["threshold"] for bz in businesses)
 
         if y_offset + entry_h < scroll_top or y_offset > scroll_bottom:
             y_offset += entry_h + spacing
@@ -5074,7 +5180,7 @@ def draw_unlocks_ui(surface, mouse_pos, mouse_clicked):
         pygame.draw.rect(surface, (50, 50, 70), entry_rect, border_radius=8)
 
         icon_size = 60
-        icon_y = y_offset + (entry_h - icon_size) // 2      
+        icon_y = y_offset + (entry_h - icon_size) // 2
 
         if u["biz_index"] is not None:
             biz = businesses[u["biz_index"]]
@@ -5249,7 +5355,6 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
                 upg["purchased"] = False
             unlocked_shown.clear()
 
-            # Reset “investment cycle” stats
             global cycle_start_time, cycle_start_money, playtime_this_prestige
             cycle_start_time = time.time()
             cycle_start_money = money
@@ -5459,20 +5564,9 @@ def draw_popup(surface):
 # 16. DRAW STATS MENU
 # -------------------------------------------------------------------------------
 def draw_stats_ui(surface, mouse_pos, mouse_clicked):
-    """
-    Draw a Stats menu showing:
-      - Cash
-      - Cash this investment cycle
-      - Total cash earned all time
-      - Total playtime this prestige
-      - Total playtime
-      - Total clicks all time
-      - Total boost from Galactic Investors
-    """
     global close_btn_rect, click_count, session_start_time, playtime_this_prestige, total_playtime
     global cycle_start_time, cycle_start_money, space_lifetime_earnings, galactic_investors_total, money
 
-    # 1) OVERLAY + BACKGROUND BOX
     overlay_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay_surf.fill((30, 30, 40, 210))
     surface.blit(overlay_surf, (0, 0))
@@ -5483,7 +5577,6 @@ def draw_stats_ui(surface, mouse_pos, mouse_clicked):
     box_y = (HEIGHT - box_h) // 2
     pygame.draw.rect(surface, PANEL_DARK, (box_x, box_y, box_w, box_h), border_radius=12)
 
-    # 2) TITLE + CLOSE BUTTON
     title_surf = font_big.render("Stats", True, WHITE)
     surface.blit(
         title_surf,
@@ -5502,37 +5595,28 @@ def draw_stats_ui(surface, mouse_pos, mouse_clicked):
          close_y + (close_size - x_surf.get_height()) // 2)
     )
 
-    # 3) COMPUTE STAT VALUES
-    # Current cash
     mant_c, suff_c = format_number_parts(int(money))
     cash_text = f"${mant_c}{suff_c}"
 
-    # Cash this investment cycle
     cycle_cash = max(0, money - cycle_start_money)
     mant_cc, suff_cc = format_number_parts(int(cycle_cash))
     cycle_text = f"${mant_cc}{suff_cc}"
 
-    # Total cash all time (space_lifetime_earnings)
     mant_tca, suff_tca = format_number_parts(int(space_lifetime_earnings))
     total_cash_text = f"${mant_tca}{suff_tca}"
 
-    # Playtime this prestige
     pts = playtime_this_prestige
     pts_text = format_time(pts)
 
-    # Total playtime
     elapsed_session = time.time() - session_start_time
     total_playtime = playtime_this_prestige + elapsed_session
     tpt_text = format_time(total_playtime)
 
-    # Total clicks
     clicks_text = str(click_count)
 
-    # Total boost from GIs
     boost_pct = galactic_investors_total * 2
     boost_text = f"{boost_pct}%"
 
-    # 4) DRAW EACH LINE
     x0 = box_x + 40
     y0 = box_y + 80
     line_gap = 40
@@ -5604,7 +5688,6 @@ while running:
             for gu in galactic_upgrades:
                 save_data["galactic_upgrades"].append({"purchased": gu["purchased"]})
 
-            # Save stats
             save_data["click_count"] = click_count
             save_data["playtime_this_prestige"] = playtime_this_prestige
             save_data["total_playtime"] = total_playtime
@@ -5621,7 +5704,6 @@ while running:
         elif event.type == pygame.MOUSEBUTTONDOWN:
             mouse_down = True
             mouse_clicked = True
-            # Count every left‐button click for stats
             if event.button == 1:
                 click_count += 1
 
@@ -5629,7 +5711,7 @@ while running:
             mouse_down = False
 
         elif event.type == pygame.MOUSEWHEEL:
-            # Smooth scrolling for manager, upgrades, and unlocks
+            # Scroll for manager, upgrades, unlocks
             if overlay_mode == "Managers":
                 manager_scroll -= event.y * 30
             elif overlay_mode == "Upgrades":
@@ -5639,7 +5721,17 @@ while running:
 
     screen.fill(BG_DARK)
 
-    # 1) UPDATE EACH BUSINESS (timers, payouts, increment biz["owned"])
+    # 0) HANDLE FIRST-TIME POPUP CLICK BLOCKING
+    # If the first_time_popup is still open, we only let its "X" consume the click.
+    # Otherwise, mouse clicks flow to the rest of the UI.
+    if first_time_popup:
+        bc = False
+        sbc = False
+    else:
+        sbc = mouse_clicked
+        bc  = mouse_clicked if overlay_mode is None else False
+
+    # 1) UPDATE EACH BUSINESS (timers, payouts)
     for biz in businesses:
         if biz["in_progress"]:
             biz["timer"] -= dt * biz["speed_mult"] * global_speed_mult
@@ -5652,12 +5744,11 @@ while running:
                 space_lifetime_earnings += payout_val
 
                 if biz["has_manager"]:
-                    # automatically restart production
                     biz["in_progress"] = True
                     effective_time = (biz["base_time"] / biz["speed_mult"]) / global_speed_mult
                     biz["timer"] = effective_time
 
-    # 2) CHECK UNLOCKS (trigger popups and apply effects)
+    # 2) CHECK UNLOCKS
     for idx, u in enumerate(unlocks):
         if idx in unlocked_shown:
             continue
@@ -5666,7 +5757,6 @@ while running:
             if b["owned"] >= u["threshold"]:
                 apply_single_unlock(idx)
         else:
-            # global unlock
             if all(bz["owned"] >= u["threshold"] for bz in businesses):
                 apply_single_unlock(idx)
 
@@ -5675,53 +5765,78 @@ while running:
         popup_message = None
 
     # 4) DRAW MAIN UI
-    draw_header(screen, money, mouse_pos, mouse_clicked)
-    draw_business_panel(screen, dt, mouse_pos, mouse_clicked)
+    draw_header(screen, money, mouse_pos, sbc)
 
-    sidebar_click = draw_sidebar(screen, mouse_pos, mouse_clicked)
-    if sidebar_click == 0 and mouse_clicked:
-        overlay_mode = "Managers"
-    elif sidebar_click == 1 and mouse_clicked:
-        overlay_mode = "Upgrades"
-    elif sidebar_click == 2 and mouse_clicked:
-        overlay_mode = "Unlocks"
-    elif sidebar_click == 3 and mouse_clicked:
-        overlay_mode = "Investors"
-    elif sidebar_click == 4 and mouse_clicked:
-        overlay_mode = "Stats"
+    unlock_result, buy_result = draw_business_panel(screen, dt, mouse_pos, bc)
 
-    # 5) DRAW OVERLAY MENUS
-    if overlay_mode == "Managers":
-        close_rect = draw_managers_ui(screen, mouse_pos, mouse_clicked)
-        if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
-            overlay_mode = None
+    # Handle unlock & buy only when no overlay & no first-time popup
+    if overlay_mode is None and not first_time_popup:
+        if unlock_result is not None:
+            biz = businesses[unlock_result]
+            if not biz["unlocked"] and money >= biz["base_cost"]:
+                money -= biz["base_cost"]
+                biz["owned"]    = 1
+                biz["unlocked"] = True
+                biz["in_progress"] = False
+                biz["timer"]    = 0.0
 
-    elif overlay_mode == "Upgrades":
-        close_rect = draw_upgrades_ui(screen, mouse_pos, mouse_clicked)
-        if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
-            overlay_mode = None
+        if buy_result is not None:
+            biz = businesses[buy_result]
+            count = purchase_options[purchase_index]
+            if count == -1:
+                count = max_affordable(biz, money)
+            total_cost = total_cost_for_next_N(biz, count)
+            if money >= total_cost:
+                money -= total_cost
+                biz["owned"] += count
 
-    elif overlay_mode == "Unlocks":
-        close_rect = draw_unlocks_ui(screen, mouse_pos, mouse_clicked)
-        if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
-            overlay_mode = None
+    # 5) DRAW SIDEBAR (only if no first-time pop-up)
+    if not first_time_popup:
+        sidebar_click = draw_sidebar(screen, mouse_pos, sbc)
+        if sidebar_click == 0 and sbc:
+            overlay_mode = "Managers"
+        elif sidebar_click == 1 and sbc:
+            overlay_mode = "Upgrades"
+        elif sidebar_click == 2 and sbc:
+            overlay_mode = "Unlocks"
+        elif sidebar_click == 3 and sbc:
+            overlay_mode = "Investors"
+        elif sidebar_click == 4 and sbc:
+            overlay_mode = "Stats"
 
-    elif overlay_mode == "Investors":
-        close_rect = draw_investors_ui(screen, mouse_pos, mouse_clicked)
-        if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
-            overlay_mode = None
+    # 6) DRAW OVERLAY MENUS
+    if not first_time_popup:
+        if overlay_mode == "Managers":
+            close_rect = draw_managers_ui(screen, mouse_pos, mouse_clicked)
+            if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
+                overlay_mode = None
 
-    elif overlay_mode == "Stats":
-        close_rect = draw_stats_ui(screen, mouse_pos, mouse_clicked)
-        if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
-            overlay_mode = None
+        elif overlay_mode == "Upgrades":
+            close_rect = draw_upgrades_ui(screen, mouse_pos, mouse_clicked)
+            if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
+                overlay_mode = None
 
-    # Handle click on first-time popup close button
+        elif overlay_mode == "Unlocks":
+            close_rect = draw_unlocks_ui(screen, mouse_pos, mouse_clicked)
+            if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
+                overlay_mode = None
+
+        elif overlay_mode == "Investors":
+            close_rect = draw_investors_ui(screen, mouse_pos, mouse_clicked)
+            if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
+                overlay_mode = None
+
+        elif overlay_mode == "Stats":
+            close_rect = draw_stats_ui(screen, mouse_pos, mouse_clicked)
+            if close_rect and mouse_clicked and close_rect.collidepoint(mouse_pos):
+                overlay_mode = None
+
+    # 7) HANDLE CLICK ON FIRST-TIME POPUP CLOSE BUTTON
     if first_time_popup and mouse_clicked:
         if first_time_popup_close.collidepoint(mouse_pos):
             first_time_popup = False
 
-    # 6) DRAW POPUP (first-time, offline earnings, or unlock)
+    # 8) DRAW POPUP (first-time, offline earnings, or unlock)
     draw_popup(screen)
 
     pygame.display.flip()
