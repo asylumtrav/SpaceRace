@@ -206,7 +206,7 @@ def default_game_state():
     Returns a fresh initial game state dictionary with all needed fields.
     """
     return {
-        "money": 5000000000000000.0,
+        "money": 5.0,
         "space_lifetime_earnings": 0.0,
         "global_speed_mult": 1.0,
         "global_profit_mult": 1.0,
@@ -4319,7 +4319,7 @@ else:
             galactic_upgrades[i]["purchased"] = gu_saved.get("purchased", False)
 
     # Restore core numeric values
-    money                       = game_state.get("money", 5000000000000000.0)
+    money                       = game_state.get("money", 5.0)
     space_lifetime_earnings     = game_state.get("space_lifetime_earnings", 0.0)
     global_speed_mult           = game_state.get("global_speed_mult", 1.0)
     global_profit_mult          = game_state.get("global_profit_mult", 1.0)
