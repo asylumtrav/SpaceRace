@@ -224,7 +224,7 @@ def default_game_state():
     """
     return {
         "money": 5.0,
-        "space_lifetime_earnings": 100000000000000000000000,
+        "space_lifetime_earnings": 0,
         "global_speed_mult": 1.0,
         "global_profit_mult": 1.0,
         "last_timestamp": time.time(),
