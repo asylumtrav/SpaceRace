@@ -159,6 +159,9 @@ def calculate_offline_earnings(data_loaded: dict, now_ts: float):
     global_speed_mult   = data_loaded.get("global_speed_mult", 1.0)
     global_profit_mult  = data_loaded.get("global_profit_mult", 1.0)
     galactic_investors_total = data_loaded.get("galactic_investors_total", 0)
+    investor_effectiveness_mult = data_loaded.get("investor_effectiveness_mult", 0.0)
+
+    per_investor_pct = 0.02 + investor_effectiveness_mult
 
     for i, biz_saved in enumerate(data_loaded["businesses"]):
         owned = biz_saved["owned"]
@@ -172,7 +175,13 @@ def calculate_offline_earnings(data_loaded: dict, now_ts: float):
             continue
 
         cycles = math.floor(offline_seconds / effective_time)
-        one_cycle_value = biz_saved["base_payout"] * owned * biz_saved["profit_mult"] * global_profit_mult * (1.0 + 0.02 * galactic_investors_total)
+        one_cycle_value = (
+            biz_saved["base_payout"]
+            * owned
+            * biz_saved["profit_mult"]
+            * global_profit_mult
+            * (1.0 + per_investor_pct * galactic_investors_total)
+        )
 
         if cycles > 0:
             earned = one_cycle_value * cycles
@@ -227,6 +236,7 @@ def default_game_state():
         "space_lifetime_earnings": 0,
         "global_speed_mult": 1.0,
         "global_profit_mult": 1.0,
+        "investor_effectiveness_mult": 0.0,
         "last_timestamp": time.time(),
         "galactic_investors_total": 0,
         "galactic_investors_spent": 0,
@@ -309,6 +319,7 @@ prestige_count = 0
 overlay_mode        = None
 last_overlay_mode   = None
 show_investor_shop  = False
+confirm_invest_popup = False
 
 
 # Add X50 and X100, keep MAX as -1
@@ -780,7 +791,7 @@ upgrades = [
     },
     {
         "biz_index":   9,
-        "name":        "Eco-safe Pipeline",
+        "name":        "Eco safe Pipeline",
         "multiplier":  3,
         "cost":        20_000_000_000_000_000,# $20 Quadrillion
         "purchased":   False
@@ -850,7 +861,7 @@ upgrades = [
     },
     {
         "biz_index":   7,
-        "name":        "Smell-O-Vision",
+        "name":        "Smell O Vision",
         "multiplier":  3,
         "cost":        75_000_000_000_000_000_000,# $75 Quintillion
         "purchased":   False
@@ -1032,7 +1043,7 @@ upgrades = [
     },
     {
         "biz_index":   7,
-        "name":        "Post-Credit Neuralizer",
+        "name":        "Post Credit Neuralizer",
         "multiplier":  3,
         "cost":        50_000_000_000_000_000_000_000_000,# $50 Quindecillion
         "purchased":   False
@@ -1109,7 +1120,7 @@ upgrades = [
     },
     {
         "biz_index":   4,
-        "name":        "Mug-Friendly Dippers",
+        "name":        "Mug Friendly Dippers",
         "multiplier":  3,
         "cost":        100_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000_000,# $100 Unvigintillion
         "purchased":   False
@@ -5513,6 +5524,8 @@ if loaded is None:
     galactic_investors_spent    = game_state["galactic_investors_spent"]
     unlocked_shown              = set(game_state["unlocked_shown"])
 
+    game_state.setdefault("investor_effectiveness_mult", 0.0)
+
     # Prepare a persistent first‐time pop‐up (no auto‐dismiss)
     first_time_popup = True
     pw = int(WIDTH * 0.6)
@@ -5566,6 +5579,8 @@ else:
     global_profit_mult          = game_state.get("global_profit_mult", 1.0)
     galactic_investors_total    = game_state.get("galactic_investors_total", 0)
     galactic_investors_spent    = game_state.get("galactic_investors_spent", 0)
+    
+    game_state.setdefault("investor_effectiveness_mult", 0.0)
 
     # Offline earnings & timer adjustments
     now_ts = time.time()
@@ -6179,7 +6194,7 @@ def draw_managers_ui(surface, mouse_pos, mouse_clicked):
     return close_btn_rect
 
 def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
-    global close_btn_rect, money, upgrade_scroll, upgrade_dragging, upgrade_drag_offset, prev_affordable_upgrades
+    global close_btn_rect, money, upgrade_scroll, upgrade_dragging, upgrade_drag_offset, prev_affordable_upgrades, game_state
 
     overlay_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay_surf.fill((30, 30, 40, 210))
@@ -6302,7 +6317,10 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
         name_surf = font_med.render(upg["name"], True, YELLOW)
         surface.blit(name_surf, (col2_x, y_offset + 8))
 
-        desc_text = f"{biz_name} profit ×{upg['multiplier']}"
+        if biz_index is None:
+            desc_text = f"Investor effectiveness ×{upg['multiplier']:.2f}"
+        else:
+            desc_text = f"{biz_name} profit ×{upg['multiplier']:.2f}"
         desc_surf = font_small.render(desc_text, True, GRAYED)
         surface.blit(desc_surf, (col2_x, y_offset + 30))
 
@@ -6328,8 +6346,8 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
         if buy_rect.collidepoint(mouse_pos) and mouse_clicked and can_buy:
             money -= cost_val
             if biz_index is None:
-                for b in businesses:
-                    b["profit_mult"] *= upg["multiplier"]
+                # ← Instead of boosting every business’s profit directly, add to investor_effectiveness_mult:
+                game_state["investor_effectiveness_mult"] += upg["multiplier"]
             else:
                 businesses[biz_index]["profit_mult"] *= upg["multiplier"]
             upg["purchased"] = True
@@ -6386,13 +6404,14 @@ def draw_upgrades_ui(surface, mouse_pos, mouse_clicked):
                 if money >= cost2:
                     money -= cost2
                     if upg2.get("biz_index") is None:
-                        for b2 in businesses:
-                            b2["profit_mult"] *= upg2["multiplier"]
+                        # ← Instead of looping over businesses here, add to investor_effectiveness_mult:
+                        game_state["investor_effectiveness_mult"] += upg2["multiplier"]
                     else:
                         businesses[upg2["biz_index"]]["profit_mult"] *= upg2["multiplier"]
                     upg2["purchased"] = True
                     something_bought = True
                     break  # restart scanning from top
+
 
     return close_btn_rect
 
@@ -6536,6 +6555,8 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
     global close_btn_rect, show_investor_shop, galactic_investors_total, galactic_investors_spent
     global investor_shop_scroll, global_speed_mult, global_profit_mult
     global money, space_lifetime_earnings, businesses, upgrades, unlocked_shown, session_start_time, playtime_this_prestige
+    invest_yes_rect = None
+    invest_no_rect  = None
 
     overlay_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
     overlay_surf.fill((30, 30, 40, 210))
@@ -6575,12 +6596,16 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
         gis_text = font_med.render(f"Total GIs: {galactic_investors_total}", True, WHITE)
         surface.blit(gis_text, (box_x + 40, info_y))
 
-        # Bonus per GI
-        bonus_text = font_med.render("Bonus per GI: 2%", True, WHITE)
-        surface.blit(bonus_text, (box_x + 40, info_y + line_spacing))
+        
+        # ─── Bonus per GI (use current value from game_state, two‐decimal format)
+        per_investor_bonus = 0.02 + game_state.get("investor_effectiveness_mult", 0.0)
+        # multiply by 100 to show as “%” and force two decimals
+        bonus_str = f"Bonus per Galactic Investor: {per_investor_bonus * 100:.2f}%"
+        bonus_surf = font_med.render(bonus_str, True, WHITE)
+        surface.blit(bonus_surf, (box_x + 40, info_y + line_spacing))
 
         # GIs Spent
-        spent_text = font_med.render(f"GIs Spent: {galactic_investors_spent}", True, WHITE)
+        spent_text = font_med.render(f"Galactic Investors Spent: {galactic_investors_spent}", True, WHITE)
         surface.blit(spent_text, (box_x + 40, info_y + 2 * line_spacing))
 
         # ─── Lifetime Earnings: format with format_number_parts ───
@@ -6680,10 +6705,258 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
         return close_btn_rect
 
 
+
+def draw_investors_ui(surface, mouse_pos, mouse_clicked):
+    global close_btn_rect, show_investor_shop, galactic_investors_total, galactic_investors_spent
+    global investor_shop_scroll, global_speed_mult, global_profit_mult
+    global money, space_lifetime_earnings, businesses, upgrades, unlocked_shown, session_start_time, playtime_this_prestige
+    global game_state
+    global confirm_invest_popup, invest_yes_rect, invest_no_rect   
+
+    overlay_surf = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+    overlay_surf.fill((30, 30, 40, 210))
+    surface.blit(overlay_surf, (0, 0))
+
+    box_w = int(WIDTH * 0.6)
+    box_h = int(HEIGHT * 0.7)
+    box_x = (WIDTH - box_w) // 2
+    box_y = (HEIGHT - box_h) // 2
+    pygame.draw.rect(surface, PANEL_DARK, (box_x, box_y, box_w, box_h), border_radius=12)
+
+    close_size = 24
+
+    if not show_investor_shop:
+        # ─── Main "Galactic Investors" view ───
+        close_x = box_x + box_w - close_size - 12
+        close_y = box_y + 12
+        close_btn_rect = pygame.Rect(close_x, close_y, close_size, close_size)
+        pygame.draw.rect(surface, BTN_HOVER, close_btn_rect, border_radius=4)
+        x_surf = font_small.render("X", True, WHITE)
+        surface.blit(
+            x_surf,
+            (
+                close_x + (close_size - x_surf.get_width()) // 2,
+                close_y + (close_size - x_surf.get_height()) // 2
+            )
+        )
+
+        title_surf = font_big.render("Galactic Investors", True, WHITE)
+        surface.blit(
+            title_surf,
+            (box_x + (box_w - title_surf.get_width()) // 2, box_y + 20)
+        )
+
+        tagline = "Putting the ‘Galaxy’ back in ‘Galactic profits’!"
+        tag_surf = font_small.render(tagline, True, GRAYED)
+        surface.blit(
+            tag_surf,
+            (box_x + (box_w - tag_surf.get_width()) // 2, box_y + 60)
+        )
+
+        info_y = box_y + 100
+        line_spacing = 30
+
+        # Total GIs (formatted)
+        mant_gi, suff_gi = format_number_parts(int(galactic_investors_total))
+        gis_text = font_med.render(f"Total GIs: {mant_gi}{suff_gi}", True, WHITE)
+        surface.blit(gis_text, (box_x + 40, info_y))
+
+        # Bonus per GI (two decimals)
+        per_investor_bonus = 0.02 + game_state.get("investor_effectiveness_mult", 0.0)
+        bonus_str = f"Bonus per Galactic Investor: {per_investor_bonus * 100:.2f}%"
+        bonus_surf = font_med.render(bonus_str, True, WHITE)
+        surface.blit(bonus_surf, (box_x + 40, info_y + line_spacing))
+
+        # GIs Spent (formatted)
+        mant_spent, suff_spent = format_number_parts(int(galactic_investors_spent))
+        spent_text = font_med.render(f"Galactic Investors Spent: {mant_spent}{suff_spent}", True, WHITE)
+        surface.blit(spent_text, (box_x + 40, info_y + 2 * line_spacing))
+
+        # Lifetime Earnings (already formatted)
+        mantissa, suffix = format_number_parts(int(space_lifetime_earnings))
+        lte_text = font_med.render(f"Lifetime Earnings: {mantissa}{suffix}", True, WHITE)
+        surface.blit(lte_text, (box_x + 40, info_y + 3 * line_spacing))
+
+        # Calculate how many new GIs are available to collect
+        lf_q_value = space_lifetime_earnings / 1e15
+        potential = int(150 * math.sqrt(lf_q_value)) if lf_q_value > 0 else 0
+        new_gis = max(0, potential - galactic_investors_spent)
+
+        # Available GIs to collect (formatted)
+        mant_new, suff_new = format_number_parts(int(new_gis))
+        avail_text = f"Available Galactic Investors to collect: {mant_new}{suff_new}"
+        avail_surf = font_med.render(avail_text, True, WHITE)
+        surface.blit(avail_surf, (box_x + 40, box_y + box_h - 200))
+
+        # ─── Invest button (shows confirmation, does NOT auto‐reset) ───
+        invest_btn_rect = pygame.Rect(box_x + 40, box_y + box_h - 160, box_w - 80, 40)
+        if new_gis > 0:
+            invest_color = ACCENT if not invest_btn_rect.collidepoint(mouse_pos) else BTN_HOVER
+        else:
+            invest_color = PANEL_DARK
+        pygame.draw.rect(surface, invest_color, invest_btn_rect, border_radius=6)
+        invest_surf = font_small.render("Invest", True, WHITE)
+        surface.blit(
+            invest_surf,
+            (
+                invest_btn_rect.x + (invest_btn_rect.w - invest_surf.get_width()) // 2,
+                invest_btn_rect.y + (invest_btn_rect.h - invest_surf.get_height()) // 2
+            )
+        )
+
+        # If user clicks Invest, open confirmation popup instead of immediately resetting:
+        if invest_btn_rect.collidepoint(mouse_pos) and mouse_clicked and new_gis > 0:
+            confirm_invest_popup = True   # ← NEW: show the “Are you sure?” dialog
+
+        # ─── If confirmation is active, draw yes/no popup on top ───
+        if confirm_invest_popup:
+            # Darken background further
+            popup_overlay = pygame.Surface((WIDTH, HEIGHT), pygame.SRCALPHA)
+            popup_overlay.fill((0, 0, 0, 180))
+            surface.blit(popup_overlay, (0, 0))
+
+            # Popup box dimensions
+            pw = int(box_w * 0.8)
+            ph = int(box_h * 0.5)
+            px = box_x + (box_w - pw) // 2
+            py = box_y + (box_h - ph) // 2
+            pygame.draw.rect(surface, PANEL_DARK, (px, py, pw, ph), border_radius=8)
+
+            # Confirmation text
+            confirm_lines = [
+                "Are you sure you want to invest?",
+                "You will lose all progress to businesses,",
+                "upgrades, unlocks, and managers.",
+                "You will keep all galactic investors",
+                "and investor shop purchases."
+            ]
+            ty = py + 20
+            for line in confirm_lines:
+                line_surf = font_small.render(line, True, WHITE)
+                surface.blit(
+                    line_surf,
+                    (px + (pw - line_surf.get_width()) // 2, ty)
+                )
+                ty += line_surf.get_height() + 5
+
+            # “YES” button
+            yes_w, yes_h = 100, 36
+            yes_x = px + pw // 4 - yes_w // 2
+            yes_y = py + ph - yes_h - 20
+            invest_yes_rect = pygame.Rect(yes_x, yes_y, yes_w, yes_h)
+            yes_color = ACCENT if not invest_yes_rect.collidepoint(mouse_pos) else BTN_HOVER
+            pygame.draw.rect(surface, yes_color, invest_yes_rect, border_radius=6)
+            yes_txt = font_med.render("YES", True, WHITE)
+            surface.blit(
+                yes_txt,
+                (
+                    invest_yes_rect.x + (yes_w - yes_txt.get_width()) // 2,
+                    invest_yes_rect.y + (yes_h - yes_txt.get_height()) // 2
+                )
+            )
+
+            # “NO” button
+            no_w, no_h = 100, 36
+            no_x = px + 3 * pw // 4 - no_w // 2
+            no_y = yes_y
+            invest_no_rect = pygame.Rect(no_x, no_y, no_w, no_h)
+            no_color = ACCENT if not invest_no_rect.collidepoint(mouse_pos) else BTN_HOVER
+            pygame.draw.rect(surface, no_color, invest_no_rect, border_radius=6)
+            no_txt = font_med.render("NO", True, WHITE)
+            surface.blit(
+                no_txt,
+                (
+                    invest_no_rect.x + (no_w - no_txt.get_width()) // 2,
+                    invest_no_rect.y + (no_h - no_txt.get_height()) // 2
+                )
+            )
+
+            # Handle clicks inside popup:
+            if invest_yes_rect.collidepoint(mouse_pos) and mouse_clicked:
+                # User confirmed “YES” → perform the actual invest/reset logic:
+                collect_amt = new_gis
+                galactic_investors_total += collect_amt
+                galactic_investors_spent += collect_amt
+
+                # Reset all businesses, upgrades, unlocks, managers
+                money = 0.0
+                space_lifetime_earnings = 0.0
+                for biz in businesses:
+                    biz["owned"] = 0
+                    biz["speed_mult"] = 1.0
+                    biz["profit_mult"] = 1.0
+                    biz["unlocked"] = False
+                    biz["has_manager"] = False
+                    biz["in_progress"] = False
+                    biz["timer"] = 0.0
+                businesses[0]["unlocked"] = True
+                businesses[0]["owned"]   = 1
+
+                for upg in upgrades:
+                    upg["purchased"] = False
+                unlocked_shown.clear()
+
+                # Reset cycle timers
+                global cycle_start_time, cycle_start_money, playtime_this_prestige
+                cycle_start_time = time.time()
+                cycle_start_money = money
+                playtime_this_prestige = 0.0
+
+                confirm_invest_popup = False   # close the popup
+
+            elif invest_no_rect.collidepoint(mouse_pos) and mouse_clicked:
+                # User clicked “NO” → just close the popup:
+                confirm_invest_popup = False
+
+        # ─── “Investor Shop” button ───
+        shop_btn_rect = pygame.Rect(box_x + 40, box_y + box_h - 100, box_w - 80, 40)
+        shop_color = ACCENT if not shop_btn_rect.collidepoint(mouse_pos) else BTN_HOVER
+        pygame.draw.rect(surface, shop_color, shop_btn_rect, border_radius=6)
+        shop_surf = font_small.render("Investor Shop", True, WHITE)
+        surface.blit(
+            shop_surf,
+            (
+                shop_btn_rect.x + (shop_btn_rect.w - shop_surf.get_width()) // 2,
+                shop_btn_rect.y + (shop_btn_rect.h - shop_surf.get_height()) // 2
+            )
+        )
+        if shop_btn_rect.collidepoint(mouse_pos) and mouse_clicked:
+            show_investor_shop = True
+
+        return close_btn_rect
+
+    else:
+        # ─── Investor Shop sub‐view ───
+        title_surf = font_big.render("GALACTIC INVESTOR SHOP", True, WHITE)
+        surface.blit(
+            title_surf,
+            (box_x + (box_w - title_surf.get_width()) // 2, box_y + 20)
+        )
+
+        # Draw “X” close button instead of back arrow
+        close_x = box_x + box_w - close_size - 12
+        close_y = box_y + 12
+        close_btn_rect = pygame.Rect(close_x, close_y, close_size, close_size)
+        pygame.draw.rect(surface, BTN_HOVER, close_btn_rect, border_radius=4)
+        x_surf = font_small.render("X", True, WHITE)
+        surface.blit(
+            x_surf,
+            (
+                close_x + (close_size - x_surf.get_width()) // 2,
+                close_y + (close_size - x_surf.get_height()) // 2
+            )
+        )
+        if close_btn_rect.collidepoint(mouse_pos) and mouse_clicked:
+            show_investor_shop = False
+
+        draw_investor_shop_list(surface, mouse_pos, mouse_clicked)
+        return close_btn_rect
+    
 def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
     global investor_shop_scroll, galactic_investors_total, galactic_investors_spent
     global global_speed_mult, global_profit_mult
     global investor_shop_dragging, investor_shop_drag_offset
+    global game_state   # ← MAKE SURE THIS IS PRESENT
 
     box_w = int(WIDTH * 0.6)
     box_h = int(HEIGHT * 0.7)
@@ -6757,7 +7030,7 @@ def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
         desc_surf = font_small.render(upgrade.get("description", ""), True, GRAYED)
         surface.blit(desc_surf, (col2_x, y_offset + 30))
 
-        # ───── PRICE BELOW DESCRIPTION ─────
+        # ───── PRICE BELOW DESCRIPTION (formatted) ─────
         cost_val = upgrade.get("cost", 0)
         mant, suff = format_number_parts(cost_val)
         price_text = f"${mant}{suff}"
@@ -6767,15 +7040,9 @@ def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
         # ───── “Buy” button ─────
         can_buy = (galactic_investors_total >= cost_val)
         buy_label = font_small.render("Buy", True, WHITE)
-        padding = 20
-        btn_w = buy_label.get_width() + padding
-        btn_h = 32
-
-        btn_x = col3_x
-        if btn_x + btn_w > box_x + box_w - 10:
-            btn_x = (box_x + box_w - 10) - btn_w
-
-        buy_rect = pygame.Rect(col3_x, y_offset + (entry_h // 2) - 15, 100, 30)
+        btn_w = 100
+        btn_h = 30
+        buy_rect = pygame.Rect(col3_x, y_offset + (entry_h // 2) - (btn_h // 2), btn_w, btn_h)
 
         if can_buy:
             base_color = ACCENT
@@ -6788,8 +7055,8 @@ def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
         surface.blit(
             buy_label,
             (
-                buy_rect.x + (buy_rect.w - buy_label.get_width())//2,
-                buy_rect.y + (buy_rect.h - buy_label.get_height())//2
+                buy_rect.x + (btn_w - buy_label.get_width()) // 2,
+                buy_rect.y + (btn_h - buy_label.get_height()) // 2
             )
         )
 
@@ -6806,13 +7073,54 @@ def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
                     businesses[biz_idx]["profit_mult"] *= upgrade.get("multiplier", 1.0)
 
             elif upg_type == "global_profit":
-                for b in businesses:
-                    b["profit_mult"] *= upgrade.get("multiplier", 1.0)
+                # ← NEW: increment investor_effectiveness_mult instead of looping businesses
+                game_state["investor_effectiveness_mult"] += upgrade.get("multiplier", 1.0)
 
             elif upg_type == "add_units":
                 amount = upgrade.get("amount", 0)
                 if biz_idx is not None and amount > 0:
                     businesses[biz_idx]["owned"] += amount
+
+        y_offset += entry_h + spacing
+
+    surface.set_clip(None)
+
+    # ─── Vertical scrollbar (unchanged) ───
+    if total_h > visible_h:
+        track_x = box_x + box_w - 12
+        track_y = list_top
+        track_w = 6
+        track_h = visible_h
+        pygame.draw.rect(
+            surface,
+            (60, 60, 80),
+            (track_x, track_y, track_w, track_h),
+            border_radius=3
+        )
+
+        thumb_h = max(20, int((visible_h / total_h) * visible_h))
+        max_thumb_travel = visible_h - thumb_h
+        if max_scroll > 0:
+            thumb_y = list_top + int((investor_shop_scroll / max_scroll) * max_thumb_travel)
+        else:
+            thumb_y = list_top
+
+        thumb_rect = pygame.Rect(track_x, thumb_y, track_w, thumb_h)
+        thumb_color = ACCENT if thumb_rect.collidepoint(mouse_pos) else BTN_HOVER
+        pygame.draw.rect(surface, thumb_color, thumb_rect, border_radius=3)
+
+        if mouse_clicked and thumb_rect.collidepoint(mouse_pos):
+            investor_shop_dragging = True
+            investor_shop_drag_offset = mouse_pos[1] - thumb_y
+
+        if 'investor_shop_dragging' in globals() and investor_shop_dragging and pygame.mouse.get_pressed()[0]:
+            new_y = mouse_pos[1] - investor_shop_drag_offset
+            new_y = max(list_top, min(list_top + max_thumb_travel, new_y))
+            investor_shop_scroll = int(((new_y - list_top) / max_thumb_travel) * max_scroll) \
+                                  if max_thumb_travel > 0 else 0
+        elif not pygame.mouse.get_pressed()[0]:
+            investor_shop_dragging = False
+
 
         y_offset += entry_h + spacing
 
@@ -6853,6 +7161,7 @@ def draw_investor_shop_list(surface, mouse_pos, mouse_clicked):
                                   if max_thumb_travel > 0 else 0
         elif not pygame.mouse.get_pressed()[0]:
             investor_shop_dragging = False
+
 
 
 def draw_popup(surface):
