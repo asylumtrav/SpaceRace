@@ -224,7 +224,7 @@ def default_game_state():
     """
     return {
         "money": 5.0,
-        "space_lifetime_earnings": 0,
+        "space_lifetime_earnings": 100000000000000000000000,
         "global_speed_mult": 1.0,
         "global_profit_mult": 1.0,
         "last_timestamp": time.time(),
@@ -6630,6 +6630,7 @@ def draw_investors_ui(surface, mouse_pos, mouse_clicked):
                 biz["in_progress"] = False
                 biz["timer"] = 0.0
             businesses[0]["unlocked"] = True
+            businesses[0]["owned"]   = 1
 
             for upg in upgrades:
                 upg["purchased"] = False
